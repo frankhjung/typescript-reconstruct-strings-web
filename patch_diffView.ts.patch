@@ -1,0 +1,155 @@
+--- src/ui/diffView.ts
++++ src/ui/diffView.ts
+@@ -17,66 +17,9 @@
+     return;
+   }
+ 
+-  // 1. Metrics Row
+-  const metricsRow = document.createElement('div');
+-  metricsRow.className = 'metrics-row';
+-
+-  // Status Card
+-  const statusCard = document.createElement('div');
+-  statusCard.className = 'metric-card';
+-  const statusTitle = document.createElement('div');
+-  statusTitle.className = 'metric-title';
+-  statusTitle.textContent = 'Assembly Status';
+-  statusCard.appendChild(statusTitle);
+-
+-  const statusVal = document.createElement('div');
+-  statusVal.className = 'metric-value';
+-  if (report.perfectMatch) {
+-    statusVal.classList.add('success');
+-    statusVal.textContent = '100% Perfect Match';
+-  } else if (report.unalignedContigs.length > 0) {
+-    statusVal.classList.add('danger');
+-    statusVal.textContent = 'Misassembly';
+-  } else {
+-    statusVal.classList.add('warning');
+-    statusVal.textContent = `${report.coveragePercent.toFixed(1)}% Coverage`;
+-  }
+-  statusCard.appendChild(statusVal);
+-  metricsRow.appendChild(statusCard);
+-
+-  // Coverage Card
+-  const covCard = document.createElement('div');
+-  covCard.className = 'metric-card';
+-  const covTitle = document.createElement('div');
+-  covTitle.className = 'metric-title';
+-  covTitle.textContent = 'Sequence Coverage';
+-  covCard.appendChild(covTitle);
+-
+-  const covVal = document.createElement('div');
+-  covVal.className = 'metric-value';
+-  covVal.textContent = `${report.coveragePercent.toFixed(1)}%`;
+-  covCard.appendChild(covVal);
+-  metricsRow.appendChild(covCard);
+-
+-  // Contig Count Card
+-  const contigCard = document.createElement('div');
+-  contigCard.className = 'metric-card';
+-  const contigTitle = document.createElement('div');
+-  contigTitle.className = 'metric-title';
+-  contigTitle.textContent = 'Contigs Reconstructed';
+-  contigCard.appendChild(contigTitle);
+-
+-  const contigVal = document.createElement('div');
+-  contigVal.className = 'metric-value';
+-  contigVal.textContent = `${report.contigs.length}`;
+-  contigCard.appendChild(contigVal);
+-  metricsRow.appendChild(contigCard);
+-
+-  container.appendChild(metricsRow);
+-
+-  // Summary message
+-  const summaryMsg = document.createElement('div');
+-  summaryMsg.className = 'status-explanation';
+-  summaryMsg.textContent = report.summary;
+-  container.appendChild(summaryMsg);
+-
+-  // 2. Stacked Alignment View
++  // 1. Stacked Alignment View (Source and Contigs)
+   const alignView = document.createElement('div');
+   alignView.className = 'stacked-alignment-view';
+-  alignView.style.marginTop = '1rem';
++  alignView.style.marginBottom = '1.5rem';
+ 
+   // Source Row
+@@ -174,7 +117,7 @@
+   container.appendChild(alignView);
+ 
+-  // 3. Legend
++  // 2. Legend
+   const legend = document.createElement('div');
+   legend.className = 'legend';
++  legend.style.marginBottom = '1.5rem';
++  legend.style.marginTop = '0';
+ 
+   const l1 = document.createElement('div');
+@@ -193,3 +136,65 @@
+ 
+   container.appendChild(legend);
++
++  // 3. Metrics Row
++  const metricsRow = document.createElement('div');
++  metricsRow.className = 'metrics-row';
++
++  // Status Card
++  const statusCard = document.createElement('div');
++  statusCard.className = 'metric-card';
++  const statusTitle = document.createElement('div');
++  statusTitle.className = 'metric-title';
++  statusTitle.textContent = 'Assembly Status';
++  statusCard.appendChild(statusTitle);
++
++  const statusVal = document.createElement('div');
++  statusVal.className = 'metric-value';
++  if (report.perfectMatch) {
++    statusVal.classList.add('success');
++    statusVal.textContent = '100% Perfect Match';
++  } else if (report.unalignedContigs.length > 0) {
++    statusVal.classList.add('danger');
++    statusVal.textContent = 'Misassembly';
++  } else {
++    statusVal.classList.add('warning');
++    statusVal.textContent = `${report.coveragePercent.toFixed(1)}% Coverage`;
++  }
++  statusCard.appendChild(statusVal);
++  metricsRow.appendChild(statusCard);
++
++  // Coverage Card
++  const covCard = document.createElement('div');
++  covCard.className = 'metric-card';
++  const covTitle = document.createElement('div');
++  covTitle.className = 'metric-title';
++  covTitle.textContent = 'Sequence Coverage';
++  covCard.appendChild(covTitle);
++
++  const covVal = document.createElement('div');
++  covVal.className = 'metric-value';
++  covVal.textContent = `${report.coveragePercent.toFixed(1)}%`;
++  covCard.appendChild(covVal);
++  metricsRow.appendChild(covCard);
++
++  // Contig Count Card
++  const contigCard = document.createElement('div');
++  contigCard.className = 'metric-card';
++  const contigTitle = document.createElement('div');
++  contigTitle.className = 'metric-title';
++  contigTitle.textContent = 'Contigs Reconstructed';
++  contigCard.appendChild(contigTitle);
++
++  const contigVal = document.createElement('div');
++  contigVal.className = 'metric-value';
++  contigVal.textContent = `${report.contigs.length}`;
++  contigCard.appendChild(contigVal);
++  metricsRow.appendChild(contigCard);
++
++  container.appendChild(metricsRow);
++
++  // 4. Summary message
++  const summaryMsg = document.createElement('div');
++  summaryMsg.className = 'status-explanation';
++  summaryMsg.textContent = report.summary;
++  container.appendChild(summaryMsg);
+ }
