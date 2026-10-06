@@ -71,18 +71,15 @@ export function renderDiffView(
   contigCard.appendChild(contigVal);
   metricsRow.appendChild(contigCard);
 
-  container.appendChild(metricsRow);
-
   // Summary message
   const summaryMsg = document.createElement('div');
   summaryMsg.className = 'status-explanation';
   summaryMsg.textContent = report.summary;
-  container.appendChild(summaryMsg);
+
 
   // 2. Stacked Alignment View
   const alignView = document.createElement('div');
   alignView.className = 'stacked-alignment-view';
-  alignView.style.marginTop = '1rem';
 
   // Source Row
   const srcRow = document.createElement('div');
@@ -195,4 +192,9 @@ export function renderDiffView(
   legend.appendChild(l3);
 
   container.appendChild(legend);
+
+  // Add metrics and summary underneath
+  metricsRow.style.marginTop = '1.5rem';
+  container.appendChild(metricsRow);
+  container.appendChild(summaryMsg);
 }
