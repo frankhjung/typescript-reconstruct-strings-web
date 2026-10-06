@@ -62,28 +62,48 @@ class App {
           </p>
         </header>
 
-        <section id="controls-panel" class="panel"></section>
-
-        <section class="panel">
-          <div class="panel-title">
-            <span>Fragment Pool Workspace</span>
+        <div class="main-layout">
+          <div class="layout-lhs">
+            <section id="controls-panel" class="panel"></section>
           </div>
-          <div id="pool-grid" class="pool-grid"></div>
-        </section>
+          
+          <div class="layout-rhs">
+            <section class="panel">
+              <div class="panel-title">
+                <span>Source Sequence (Ground Truth)</span>
+              </div>
+              <div class="form-group full-width">
+                <input
+                  id="param-source"
+                  type="text"
+                  value="ATGGCGTGCA"
+                  spellcheck="false"
+                />
+              </div>
+            </section>
 
-        <section class="panel">
-          <div class="panel-title">
-            <span>Overlap &amp; Merge Theatre</span>
-          </div>
-          <div id="theatre-container" class="theatre-container"></div>
-        </section>
+            <section class="panel fixed-panel">
+              <div class="panel-title">
+                <span>Fragment Pool Workspace</span>
+              </div>
+              <div id="pool-grid" class="pool-grid"></div>
+            </section>
 
-        <section class="panel">
-          <div class="panel-title">
-            <span>Reference Alignment &amp; Verification</span>
+            <section class="panel fixed-panel">
+              <div class="panel-title">
+                <span>Overlap &amp; Merge Theatre</span>
+              </div>
+              <div id="theatre-container" class="theatre-container"></div>
+            </section>
+
+            <section class="panel fixed-panel">
+              <div class="panel-title">
+                <span>Reference Alignment &amp; Verification</span>
+              </div>
+              <div id="diff-container" class="diff-container"></div>
+            </section>
           </div>
-          <div id="diff-container"></div>
-        </section>
+        </div>
       </div>
     `;
 

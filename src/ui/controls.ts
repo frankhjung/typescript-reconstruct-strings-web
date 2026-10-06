@@ -63,15 +63,6 @@ export class ControlsComponent {
       </div>
 
       <div class="grid-params">
-        <div class="form-group full-width">
-          <label for="param-source">Source Sequence (Ground Truth)</label>
-          <input
-            id="param-source"
-            type="text"
-            value="ATGGCGTGCA"
-            spellcheck="false"
-          />
-        </div>
         <div class="form-group">
           <label for="param-n">Min Overlap (n)</label>
           <input id="param-n" type="number" min="2" value="2" />
@@ -162,8 +153,8 @@ export class ControlsComponent {
       </div>
     `;
 
-    this.inputSource = this.container.querySelector(
-      '#param-source'
+    this.inputSource = document.getElementById(
+      'param-source'
     ) as HTMLInputElement;
     this.inputN = this.container.querySelector(
       '#param-n'

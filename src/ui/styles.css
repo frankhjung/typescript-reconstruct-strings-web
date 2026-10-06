@@ -32,11 +32,36 @@ body {
 }
 
 .app-container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.main-layout {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.layout-lhs {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  position: sticky;
+  top: 1.5rem;
+}
+
+.layout-rhs {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.fixed-panel {
+  min-height: 250px;
 }
 
 header {
