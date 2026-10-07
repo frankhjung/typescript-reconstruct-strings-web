@@ -1,4 +1,5 @@
 import { AssemblyStep } from '../types.js'
+import { escapeHtml } from './escape.js'
 
 /**
  * Pure template renderer for the fragment pool workspace.
@@ -32,12 +33,14 @@ export function renderPoolHtml(step: AssemblyStep | null): string {
       badgeHtml = '<span class="badge merged">Merged</span>'
     }
 
-    return `<div class="fragment-card${activeClass}"><span>${fragment}</span>${badgeHtml}</div>`
+    const safeFragment = escapeHtml(fragment)
+    return `<div class="fragment-card${activeClass}"><span>${safeFragment}</span>${badgeHtml}</div>`
   }).join('')
 
-  const removedCards = removed.map(rem =>
-    `<div class="fragment-card removed"><span>${rem}</span><span class="badge removed">Contained</span></div>`
-  ).join('')
+  const removedCards = removed.map(rem => {
+    const safeRem = escapeHtml(rem)
+    return `<div class="fragment-card removed"><span>${safeRem}</span><span class="badge removed">Contained</span></div>`
+  }).join('')
 
   return activeCards + removedCards
 }

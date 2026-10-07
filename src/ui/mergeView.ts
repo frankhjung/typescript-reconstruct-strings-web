@@ -1,4 +1,5 @@
 import { AssemblyStep } from '../types.js'
+import { escapeHtml } from './escape.js'
 
 /**
  * Pure template renderer for the merge theatre demonstrating suffix-prefix
@@ -18,7 +19,7 @@ export function renderMergeTheatreHtml(step: AssemblyStep | null): string {
   // Prefix row
   const prefixCells = Array.from(prefix).map((char, i) => {
     const cls = i >= prefixNonOverlapLen ? 'char-cell overlap' : 'char-cell prefix-char'
-    return `<div class="${cls}">${char}</div>`
+    return `<div class="${cls}">${escapeHtml(char)}</div>`
   }).join('')
 
   const prefixRow = `
@@ -32,7 +33,7 @@ export function renderMergeTheatreHtml(step: AssemblyStep | null): string {
   const spacerCells = '<div class="char-cell gap"></div>'.repeat(prefixNonOverlapLen)
   const suffixCells = Array.from(suffix).map((char, i) => {
     const cls = i < matchLength ? 'char-cell overlap' : 'char-cell suffix-char'
-    return `<div class="${cls}">${char}</div>`
+    return `<div class="${cls}">${escapeHtml(char)}</div>`
   }).join('')
 
   const suffixRow = `
@@ -53,7 +54,7 @@ export function renderMergeTheatreHtml(step: AssemblyStep | null): string {
       } else if (i < prefix.length) {
         cls = 'char-cell overlap'
       }
-      return `<div class="${cls}">${char}</div>`
+      return `<div class="${cls}">${escapeHtml(char)}</div>`
     }).join('')
 
     mergedRow = `

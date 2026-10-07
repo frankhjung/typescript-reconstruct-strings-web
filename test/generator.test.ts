@@ -75,7 +75,35 @@ describe('Generator - Validation and Extraction', () => {
       assert.ok(
         params.source.includes(f),
         `Fragment "${f}" must be a substring of source`
-      );
+      )
     }
-  });
-});
+  })
+
+  it('rejects source length exceeding maximum limit', () => {
+    assert.throws(
+      () =>
+        validateGeneratorParams({
+          source: 'A'.repeat(10001),
+          n: 2,
+          a: 3,
+          b: 5,
+          m: 6
+        }),
+      /exceeds maximum limit/
+    )
+  })
+
+  it('rejects fragment count exceeding maximum limit', () => {
+    assert.throws(
+      () =>
+        validateGeneratorParams({
+          source: 'ATGGCGTGCA',
+          n: 2,
+          a: 3,
+          b: 5,
+          m: 501
+        }),
+      /exceeds maximum limit/
+    )
+  })
+})

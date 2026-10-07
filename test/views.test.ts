@@ -163,3 +163,53 @@ describe('Declarative Views - Diff / Alignment View', () => {
     assert.ok(html.includes('>Z<'))
   })
 })
+
+describe('Security - HTML Sanitisation', () => {
+  it('escapes special HTML characters in pool view', () => {
+    const maliciousStep: AssemblyStep = {
+      stepIndex: 0,
+      type: 'init',
+      pool: ['<script>alert(1)</script>'],
+      description: 'Test XSS'
+    }
+    const html = renderPoolHtml(maliciousStep)
+    assert.ok(!html.includes('<script>'))
+    assert.ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'))
+  })
+
+  it('escapes special HTML characters in merge theatre', () => {
+    const maliciousStep: AssemblyStep = {
+      stepIndex: 1,
+      type: 'find-overlap',
+      pool: ['<A>', 'A>B'],
+      candidate: {
+        prefix: '<A>',
+        suffix: 'A>B',
+        matchLength: 1
+      },
+      description: 'Test overlap'
+    }
+    const html = renderMergeTheatreHtml(maliciousStep)
+    assert.ok(!html.includes('<div><</div>'))
+    assert.ok(html.includes('&lt;'))
+    assert.ok(html.includes('&gt;'))
+  })
+
+  it('escapes special characters in diff view summary', () => {
+    const report: AlignmentReport = {
+      source: '<SRC>',
+      contigs: ['<SRC>'],
+      perfectMatch: true,
+      coveredPositions: [true, true, true, true, true],
+      coveragePercent: 100,
+      coveredSpans: [{ start: 0, end: 5 }],
+      uncoveredSpans: [],
+      alignments: [{ contig: '<SRC>', sourceStart: 0, length: 5, isExact: true }],
+      unalignedContigs: [],
+      summary: '<b onmouseover=alert(1)>Summary</b>'
+    }
+    const html = renderDiffViewHtml(report)
+    assert.ok(!html.includes('<b onmouseover'))
+    assert.ok(html.includes('&lt;b onmouseover'))
+  })
+})

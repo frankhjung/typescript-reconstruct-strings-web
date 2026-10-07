@@ -16,6 +16,41 @@ verifies reconstruction against a reference sequence.
 - **Zero Runtime Dependencies:** Compiles into a self-contained, single-file
   HTML bundle using vanilla TypeScript and CSS.
 
+## Architecture & Workflow
+
+The reconstruction animation pipeline coordinates fragment generation,
+iterative reduction assembly, and real-time reference verification:
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor User
+  participant UI as Controls UI
+  participant Gen as Generator
+  participant Asm as Assembler
+  participant Align as Alignment
+  participant View as View Renderers
+
+  User->>UI: Select Preset / Generate
+  UI->>Gen: generateFragments(params)
+  Gen-->>UI: fragments
+  UI->>Asm: assembleWithTrace(fragments, minOverlap)
+  Note over Asm: Pre-filter containment & duplicates
+  loop Iterative Reduction
+    Asm->>Asm: findBestOverlap(pool, minOverlap)
+    Asm->>Asm: mergePair(prefix, suffix)
+    Asm->>Asm: filterContainedFragments(pool)
+  end
+  Asm->>Asm: sortCanonical(contigs)
+  Asm-->>UI: AssemblyResult (steps, contigs)
+  loop Playback / Step Scrubbing
+    UI->>Align: alignContigsToSource(source, currentStep.pool)
+    Align-->>UI: AlignmentReport
+    UI->>View: renderPoolHtml / renderMergeTheatreHtml / renderDiffViewHtml
+    View-->>User: Render updated DOM elements
+  end
+```
+
 ## Quick Start
 
 ### Prerequisites

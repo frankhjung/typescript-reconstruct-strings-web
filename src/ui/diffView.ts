@@ -1,4 +1,5 @@
 import { AlignmentReport } from '../types.js'
+import { escapeHtml } from './escape.js'
 
 /**
  * Pure template renderer for the stacked reference alignment view and assembly metrics.
@@ -11,7 +12,7 @@ export function renderDiffViewHtml(report: AlignmentReport | null): string {
   // 1. Stacked Alignment View
   const sourceCells = Array.from(report.source).map((char, i) => {
     const cls = report.coveredPositions[i] ? 'char-cell match' : 'char-cell gap'
-    return `<div class="${cls}">${char}</div>`
+    return `<div class="${cls}">${escapeHtml(char)}</div>`
   }).join('')
 
   const sourceRow = `
@@ -27,7 +28,7 @@ export function renderDiffViewHtml(report: AlignmentReport | null): string {
       const srcIdx = align.sourceStart + i
       const isMatch = srcIdx < report.source.length && report.source[srcIdx] === char
       const cls = isMatch ? 'char-cell match' : 'char-cell mismatch'
-      return `<div class="${cls}">${char}</div>`
+      return `<div class="${cls}">${escapeHtml(char)}</div>`
     }).join('')
 
     return `
@@ -40,7 +41,7 @@ export function renderDiffViewHtml(report: AlignmentReport | null): string {
 
   const chimeraRows = report.unalignedContigs.map((contig, idx) => {
     const cells = Array.from(contig).map(char =>
-      `<div class="char-cell mismatch">${char}</div>`
+      `<div class="char-cell mismatch">${escapeHtml(char)}</div>`
     ).join('')
 
     return `
@@ -97,7 +98,7 @@ export function renderDiffViewHtml(report: AlignmentReport | null): string {
   `
 
   // 4. Summary message
-  const summaryMsg = `<div class="status-explanation">${report.summary}</div>`
+  const summaryMsg = `<div class="status-explanation">${escapeHtml(report.summary)}</div>`
 
   return alignmentView + legend + metricsRow + summaryMsg
 }
