@@ -1,55 +1,36 @@
 import { alignContigsToSource } from './alignment.js'
 import { assembleWithTrace } from './assembler.js'
-import { generateFragments } from './generator.js'
+import { generateFragments, validateCustomFragments } from './generator.js'
+import { DEFAULT_STEP_DELAY_MS } from './input.js'
 import { PRESETS } from './presets.js'
-import {
-  AssemblyStep,
-  GeneratorParams,
-  Preset
-} from './types.js'
+import type { AssemblyStep, GeneratorParams, Preset } from './types.js'
 import { ControlsComponent } from './ui/controls.js'
 import { renderDiffViewHtml } from './ui/diffView.js'
 import { renderMergeTheatreHtml } from './ui/mergeView.js'
 import { renderPoolHtml } from './ui/poolView.js'
 
-class App {
-  private currentSource = 'ATGGCGTGCA'
-  private steps: readonly AssemblyStep[] = []
-  private currentStepIndex = 0
+/** The regions of the page that the application renders into. */
+interface Workspace {
+  readonly controlsPanel: HTMLElement
+  readonly pool: HTMLElement
+  readonly theatre: HTMLElement
+  readonly diff: HTMLElement
+}
 
-  private isPlaying = false
-  private playbackTimer: number | null = null
-  private stepDelayMs = 1000
-
-  private controls!: ControlsComponent
-  private poolContainer!: HTMLElement
-  private theatreContainer!: HTMLElement
-  private diffContainer!: HTMLElement
-
-  constructor() {
-    this.initDOM()
-    this.initControls()
-
-    const searchParams = new URLSearchParams(window.location.search)
-    const presetParam = searchParams.get('preset')
-    const pIdx = presetParam !== null ? parseInt(presetParam, 10) : 0
-    const initialPreset = !isNaN(pIdx) && PRESETS[pIdx] ? PRESETS[pIdx] : PRESETS[0]
-    if (initialPreset) {
-      this.loadPreset(initialPreset)
-    }
-
-    const stepParam = searchParams.get('step')
-    if (stepParam !== null) {
-      const stepIdx = parseInt(stepParam, 10)
-      if (!isNaN(stepIdx)) {
-        this.seekTo(stepIdx)
-      }
-    }
+function requireById(id: string): HTMLElement {
+  const el = document.getElementById(id)
+  if (!el) {
+    throw new Error(`Required element #${id} not found`)
   }
+  return el
+}
 
-  private initDOM(): void {
-    const root = document.getElementById('app') || document.body
-    root.innerHTML = `
+/**
+ * Build the static page layout and return the regions to render into.
+ */
+function mountWorkspace(): Workspace {
+  const root = document.getElementById('app') ?? document.body
+  root.innerHTML = `
       <div class="app-container">
         <header>
           <h1>Overlap-Layout-Consensus (OLC) Reconstruction</h1>
@@ -87,33 +68,79 @@ class App {
       </div>
     `
 
-    const poolEl = document.getElementById('pool-grid')
-    const theatreEl = document.getElementById('theatre-container')
-    const diffEl = document.getElementById('diff-container')
-    if (!poolEl || !theatreEl || !diffEl) {
-      throw new Error('Required workspace DOM elements not found')
+  return {
+    controlsPanel: requireById('controls-panel'),
+    pool: requireById('pool-grid'),
+    theatre: requireById('theatre-container'),
+    diff: requireById('diff-container')
+  }
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
+}
+
+/**
+ * Parse an optional non-negative integer query parameter.
+ */
+function intParam(params: URLSearchParams, name: string): number | undefined {
+  const raw = params.get(name)
+  if (raw === null) {
+    return undefined
+  }
+  const value = Number.parseInt(raw, 10)
+  return Number.isNaN(value) ? undefined : value
+}
+
+/**
+ * Application controller: owns assembly state and playback, and wires the
+ * controls to the pure assembler, alignment and view renderers.
+ *
+ * Supported URL query parameters:
+ * - `preset`: index into {@link PRESETS} to load initially (default 0)
+ * - `step`: index of the animation step to show initially
+ */
+class App {
+  private currentSource = ''
+  private steps: readonly AssemblyStep[] = []
+  private currentStepIndex = 0
+
+  private isPlaying = false
+  private playbackTimer: number | null = null
+  private stepDelayMs = DEFAULT_STEP_DELAY_MS
+
+  private readonly workspace: Workspace
+  private readonly controls: ControlsComponent
+
+  constructor() {
+    this.workspace = mountWorkspace()
+    this.controls = this.createControls(this.workspace.controlsPanel)
+    this.controls.setSpeed(this.stepDelayMs)
+
+    const searchParams = new URLSearchParams(window.location.search)
+    const presetIdx = intParam(searchParams, 'preset') ?? 0
+    const initialPreset = PRESETS[presetIdx] ?? PRESETS[0]
+    if (initialPreset) {
+      this.loadPreset(initialPreset)
     }
 
-    this.poolContainer = poolEl
-    this.theatreContainer = theatreEl
-    this.diffContainer = diffEl
+    const stepIdx = intParam(searchParams, 'step')
+    if (stepIdx !== undefined) {
+      this.seekTo(stepIdx)
+    }
   }
 
-  private initControls(): void {
-    const controlsPanel = document.getElementById('controls-panel')
-    if (!controlsPanel) {
-      throw new Error('Controls panel element #controls-panel not found')
-    }
-
-    this.controls = new ControlsComponent(controlsPanel, PRESETS, {
-      onGenerate: params => this.handleGenerate(params),
-      onCustomFragments: (frags, n) => this.handleCustom(frags, n),
-      onSelectPreset: preset => this.loadPreset(preset),
+  private createControls(panel: HTMLElement): ControlsComponent {
+    return new ControlsComponent(panel, PRESETS, {
+      onGenerate: (params) => this.handleGenerate(params),
+      onCustomFragments: (fragments, minOverlap, source) =>
+        this.handleCustom(fragments, minOverlap, source),
+      onSelectPreset: (preset) => this.loadPreset(preset),
       onPlayPause: () => this.togglePlay(),
       onStepNext: () => this.stepNext(),
       onStepPrev: () => this.stepPrev(),
-      onSeek: idx => this.seekTo(idx),
-      onSpeedChange: delay => {
+      onSeek: (idx) => this.seekTo(idx),
+      onSpeedChange: (delay) => {
         this.stepDelayMs = delay
         if (this.isPlaying) {
           this.stopPlayback()
@@ -124,60 +151,77 @@ class App {
     })
   }
 
-  private handleGenerate(params: GeneratorParams): void {
+  /**
+   * Stop playback, run an action that may fail validation, and report any
+   * error to the user instead of leaving the display half-updated.
+   */
+  private attempt(action: () => void): void {
     this.stopPlayback()
     try {
-      this.currentSource = params.source
-      const fragments = generateFragments(params)
-      this.runAssembly(fragments, params.n)
+      action()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
-      this.controls.setExplanation(`Error: ${msg}`)
+      this.controls.setExplanation(`Error: ${errorMessage(err)}`)
     }
   }
 
-  private handleCustom(fragments: string[], minOverlap: number): void {
-    this.stopPlayback()
-    if (fragments.length === 0) {
-      this.controls.setExplanation('Error: Fragment pool cannot be empty.')
-      return
-    }
-    try {
-      this.runAssembly(fragments, minOverlap)
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
-      this.controls.setExplanation(`Error: ${msg}`)
-    }
+  private handleGenerate(params: GeneratorParams): void {
+    this.attempt(() => {
+      const fragments = generateFragments(params)
+      this.runAssembly(params.source, fragments, params.minOverlap)
+    })
+  }
+
+  private handleCustom(
+    fragments: readonly string[],
+    minOverlap: number,
+    source: string
+  ): void {
+    this.attempt(() => {
+      validateCustomFragments(fragments, minOverlap, source)
+      this.runAssembly(source, fragments, minOverlap)
+    })
   }
 
   private loadPreset(preset: Preset): void {
-    this.controls.setParams(preset.params)
-    this.currentSource = preset.params.source
-    if (preset.defaultFragments && preset.defaultFragments.length > 0) {
-      this.controls.setCustomText(preset.defaultFragments.join('\n'))
-      this.runAssembly([...preset.defaultFragments], preset.params.n)
-    } else {
-      this.handleGenerate(preset.params)
-    }
+    this.attempt(() => {
+      this.controls.setParams(preset.params)
+      const fixed = preset.defaultFragments
+      if (fixed && fixed.length > 0) {
+        this.controls.setCustomText(fixed.join('\n'))
+      }
+      const fragments =
+        fixed && fixed.length > 0 ? fixed : generateFragments(preset.params)
+      this.runAssembly(
+        preset.params.source,
+        fragments,
+        preset.params.minOverlap
+      )
+    })
   }
 
-  private runAssembly(fragments: string[], minOverlap: number): void {
+  /**
+   * Assemble and show the result. State changes only after assembly
+   * succeeds, so the source always matches the steps being displayed.
+   */
+  private runAssembly(
+    source: string,
+    fragments: readonly string[],
+    minOverlap: number
+  ): void {
     const result = assembleWithTrace(fragments, minOverlap)
+    this.currentSource = source
     this.steps = result.steps
     this.currentStepIndex = 0
     this.renderCurrentState()
   }
 
   private renderCurrentState(): void {
-    if (this.steps.length === 0) {
-      this.poolContainer.innerHTML = renderPoolHtml(null)
-      this.theatreContainer.innerHTML = renderMergeTheatreHtml(null)
-      this.diffContainer.innerHTML = renderDiffViewHtml(null)
-      return
-    }
-
+    const { pool, theatre, diff } = this.workspace
     const currentStep = this.steps[this.currentStepIndex]
     if (!currentStep) {
+      pool.innerHTML = renderPoolHtml(null)
+      theatre.innerHTML = renderMergeTheatreHtml(null)
+      diff.innerHTML = renderDiffViewHtml(null)
       return
     }
 
@@ -186,14 +230,11 @@ class App {
       currentStep.pool
     )
 
-    this.poolContainer.innerHTML = renderPoolHtml(currentStep)
-    this.theatreContainer.innerHTML = renderMergeTheatreHtml(currentStep)
-    this.diffContainer.innerHTML = renderDiffViewHtml(stepReport)
+    pool.innerHTML = renderPoolHtml(currentStep)
+    theatre.innerHTML = renderMergeTheatreHtml(currentStep)
+    diff.innerHTML = renderDiffViewHtml(stepReport)
 
-    this.controls.updateProgress(
-      this.currentStepIndex,
-      this.steps.length
-    )
+    this.controls.updateProgress(this.currentStepIndex, this.steps.length)
     this.controls.setExplanation(currentStep.description)
   }
 
@@ -230,7 +271,7 @@ class App {
     this.isPlaying = false
     this.controls.setPlaying(false)
     if (this.playbackTimer !== null) {
-      clearInterval(this.playbackTimer)
+      window.clearInterval(this.playbackTimer)
       this.playbackTimer = null
     }
   }
@@ -266,17 +307,11 @@ class App {
   }
 }
 
-declare global {
-  interface Window {
-    __app?: App
-  }
-}
-
 // Bootstrap application on DOM ready
 if (document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', () => {
-    window.__app = new App()
+    new App()
   })
 } else {
-  window.__app = new App()
+  new App()
 }

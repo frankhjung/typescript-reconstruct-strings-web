@@ -2,15 +2,33 @@
  * Core domain types and state interfaces for the OLC sequence assembler.
  */
 
+/** A pair of fragments that overlap by `matchLength` characters. */
 export interface OverlapCandidate {
+  /** Fragment whose end overlaps the start of `suffix`. */
   readonly prefix: string
+  /** Fragment whose start overlaps the end of `prefix`. */
   readonly suffix: string
+  /** Number of overlapping characters. */
   readonly matchLength: number
 }
 
+/** Why a fragment was dropped from the pool. */
+export type RemovalReason = 'contained' | 'duplicate'
+
+/** A fragment dropped from the pool, with the reason. */
+export interface RemovedFragment {
+  readonly fragment: string
+  readonly reason: RemovalReason
+  /** Number of redundant copies dropped (`duplicate` only). */
+  readonly copies?: number
+}
+
+/** Fields shared by every step of the assembly trace. */
 export interface BaseAssemblyStep {
   readonly stepIndex: number
+  /** Active fragment pool after this step. */
   readonly pool: readonly string[]
+  /** Human readable explanation of the step. */
   readonly description: string
 }
 
@@ -20,7 +38,7 @@ export interface InitStep extends BaseAssemblyStep {
 
 export interface FilterInitialStep extends BaseAssemblyStep {
   readonly type: 'filter-initial'
-  readonly removedFragments?: readonly string[]
+  readonly removedFragments?: readonly RemovedFragment[]
 }
 
 export interface FindOverlapStep extends BaseAssemblyStep {
@@ -37,7 +55,7 @@ export interface MergePairStep extends BaseAssemblyStep {
 export interface FilterDynamicStep extends BaseAssemblyStep {
   readonly type: 'filter-dynamic'
   readonly candidate?: OverlapCandidate
-  readonly removedFragments?: readonly string[]
+  readonly removedFragments?: readonly RemovedFragment[]
   readonly mergedFragment?: string
 }
 
@@ -49,6 +67,7 @@ export interface CompletedStep extends BaseAssemblyStep {
   readonly type: 'completed'
 }
 
+/** Discriminated union of all assembly trace steps. */
 export type AssemblyStep =
   | InitStep
   | FilterInitialStep
@@ -58,28 +77,34 @@ export type AssemblyStep =
   | CanonicalSortStep
   | CompletedStep
 
-export type StepType = AssemblyStep['type']
-
+/** Parameters for generating random fragments from a source string. */
 export interface GeneratorParams {
+  /** Ground-truth sequence to sample fragments from. */
   readonly source: string
-  readonly n: number // minimum overlap threshold
-  readonly a: number // minimum fragment length
-  readonly b: number // maximum fragment length
-  readonly m: number // number of random fragments
+  /** Minimum overlap threshold (UI label: n). */
+  readonly minOverlap: number
+  /** Minimum fragment length (UI label: a). */
+  readonly minLength: number
+  /** Maximum fragment length (UI label: b). */
+  readonly maxLength: number
+  /** Number of random fragments (UI label: m). */
+  readonly fragmentCount: number
 }
 
+/** Half-open interval of source positions. */
 export interface Span {
   readonly start: number // 0-based inclusive
   readonly end: number // 0-based exclusive
 }
 
+/** Placement of one contig against the source sequence. */
 export interface ContigAlignment {
   readonly contig: string
   readonly sourceStart: number
-  readonly length: number
   readonly isExact: boolean
 }
 
+/** Result of comparing assembled contigs against the source. */
 export interface AlignmentReport {
   readonly source: string
   readonly contigs: readonly string[]
@@ -93,9 +118,11 @@ export interface AlignmentReport {
   readonly summary: string
 }
 
+/** A named example configuration offered in the UI. */
 export interface Preset {
   readonly name: string
   readonly description: string
   readonly params: GeneratorParams
+  /** Fixed fragments; when absent, fragments are generated randomly. */
   readonly defaultFragments?: readonly string[]
 }

@@ -1,60 +1,87 @@
-import { AlignmentReport } from '../types.js'
+import type { AlignmentReport } from '../types.js'
 import { escapeHtml } from './escape.js'
 
+const GAP_CELL = '<div class="char-cell gap"></div>'
+
+function cell(cls: string, char: string): string {
+  return `<div class="${cls}">${escapeHtml(char)}</div>`
+}
+
+function row(label: string, cells: string): string {
+  return `
+    <div class="alignment-row">
+      <span class="align-label">${label}:</span>
+      <div class="seq-box">${cells}</div>
+    </div>
+  `
+}
+
+function legendItem(cls: string, label: string): string {
+  return (
+    `<div class="legend-item">` +
+    `<span class="legend-box ${cls}"></span> ${label}</div>`
+  )
+}
+
+function metricCard(title: string, value: string, valueClass = ''): string {
+  return `
+      <div class="metric-card">
+        <div class="metric-title">${title}</div>
+        <div class="metric-value ${valueClass}">${value}</div>
+      </div>`
+}
+
 /**
- * Pure template renderer for the stacked reference alignment view and assembly metrics.
+ * Pure template renderer for the stacked reference alignment view and
+ * assembly metrics.
  */
 export function renderDiffViewHtml(report: AlignmentReport | null): string {
   if (!report) {
-    return '<div class="theatre-empty">Run assembly to generate reference comparison.</div>'
+    return (
+      '<div class="theatre-empty">' +
+      'Run assembly to generate reference comparison.</div>'
+    )
   }
 
   // 1. Stacked Alignment View
-  const sourceCells = Array.from(report.source).map((char, i) => {
-    const cls = report.coveredPositions[i] ? 'char-cell match' : 'char-cell gap'
-    return `<div class="${cls}">${escapeHtml(char)}</div>`
-  }).join('')
+  const sourceCells = Array.from(report.source)
+    .map((char, i) =>
+      cell(
+        report.coveredPositions[i] ? 'char-cell match' : 'char-cell gap',
+        char
+      )
+    )
+    .join('')
 
-  const sourceRow = `
-    <div class="alignment-row">
-      <span class="align-label">Source:</span>
-      <div class="seq-box">${sourceCells}</div>
-    </div>
-  `
+  const contigRows = report.alignments
+    .map((align, idx) => {
+      const contigCells = Array.from(align.contig)
+        .map((char, i) => {
+          const isMatch = report.source[align.sourceStart + i] === char
+          return cell(isMatch ? 'char-cell match' : 'char-cell mismatch', char)
+        })
+        .join('')
+      return row(
+        `Contig ${idx + 1}`,
+        GAP_CELL.repeat(align.sourceStart) + contigCells
+      )
+    })
+    .join('')
 
-  const contigRows = report.alignments.map((align, idx) => {
-    const spacers = '<div class="char-cell gap"></div>'.repeat(align.sourceStart)
-    const contigCells = Array.from(align.contig).map((char, i) => {
-      const srcIdx = align.sourceStart + i
-      const isMatch = srcIdx < report.source.length && report.source[srcIdx] === char
-      const cls = isMatch ? 'char-cell match' : 'char-cell mismatch'
-      return `<div class="${cls}">${escapeHtml(char)}</div>`
-    }).join('')
-
-    return `
-      <div class="alignment-row">
-        <span class="align-label">Contig ${idx + 1}:</span>
-        <div class="seq-box">${spacers}${contigCells}</div>
-      </div>
-    `
-  }).join('')
-
-  const chimeraRows = report.unalignedContigs.map((contig, idx) => {
-    const cells = Array.from(contig).map(char =>
-      `<div class="char-cell mismatch">${escapeHtml(char)}</div>`
-    ).join('')
-
-    return `
-      <div class="alignment-row">
-        <span class="align-label">Chimera ${idx + 1}:</span>
-        <div class="seq-box">${cells}</div>
-      </div>
-    `
-  }).join('')
+  const chimeraRows = report.unalignedContigs
+    .map((contig, idx) =>
+      row(
+        `Chimera ${idx + 1}`,
+        Array.from(contig)
+          .map((char) => cell('char-cell mismatch', char))
+          .join('')
+      )
+    )
+    .join('')
 
   const alignmentView = `
     <div class="stacked-alignment-view">
-      ${sourceRow}
+      ${row('Source', sourceCells)}
       ${contigRows}
       ${chimeraRows}
     </div>
@@ -63,15 +90,16 @@ export function renderDiffViewHtml(report: AlignmentReport | null): string {
   // 2. Legend
   const legend = `
     <div class="legend">
-      <div class="legend-item"><span class="legend-box match"></span> Exact Match</div>
-      <div class="legend-item"><span class="legend-box mismatch"></span> Mismatch / Error</div>
-      <div class="legend-item"><span class="legend-box gap"></span> Uncovered Gap</div>
+      ${legendItem('match', 'Exact Match')}
+      ${legendItem('mismatch', 'Mismatch / Error')}
+      ${legendItem('gap', 'Uncovered Gap')}
     </div>
   `
 
   // 3. Metrics Row
+  const coverage = `${report.coveragePercent.toFixed(1)}%`
   let statusClass = 'warning'
-  let statusText = `${report.coveragePercent.toFixed(1)}% Coverage`
+  let statusText = `${coverage} Coverage`
   if (report.perfectMatch) {
     statusClass = 'success'
     statusText = '100% Perfect Match'
@@ -81,34 +109,16 @@ export function renderDiffViewHtml(report: AlignmentReport | null): string {
   }
 
   const metricsRow = `
-    <div class="metrics-row" style="margin-top: 1.5rem;">
-      <div class="metric-card">
-        <div class="metric-title">Assembly Status</div>
-        <div class="metric-value ${statusClass}">${statusText}</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-title">Sequence Coverage</div>
-        <div class="metric-value">${report.coveragePercent.toFixed(1)}%</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-title">Contigs Reconstructed</div>
-        <div class="metric-value">${report.contigs.length}</div>
-      </div>
+    <div class="metrics-row spaced">
+      ${metricCard('Assembly Status', statusText, statusClass)}
+      ${metricCard('Sequence Coverage', coverage)}
+      ${metricCard('Contigs Reconstructed', String(report.contigs.length))}
     </div>
   `
 
   // 4. Summary message
-  const summaryMsg = `<div class="status-explanation">${escapeHtml(report.summary)}</div>`
+  const summaryMsg =
+    `<div class="status-explanation">` + `${escapeHtml(report.summary)}</div>`
 
   return alignmentView + legend + metricsRow + summaryMsg
-}
-
-/**
- * Render the stacked reference alignment view and assembly metrics (backward-compatible adapter).
- */
-export function renderDiffView(
-  container: HTMLElement,
-  report: AlignmentReport | null
-): void {
-  container.innerHTML = renderDiffViewHtml(report)
 }

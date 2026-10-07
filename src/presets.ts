@@ -1,4 +1,4 @@
-import { Preset } from './types.js'
+import type { Preset } from './types.js'
 
 export const PRESETS: readonly Preset[] = [
   {
@@ -6,10 +6,10 @@ export const PRESETS: readonly Preset[] = [
     description: 'Classic 10 bp nucleotide strand (ATGGCGTGCA)',
     params: {
       source: 'ATGGCGTGCA',
-      n: 2,
-      a: 4,
-      b: 6,
-      m: 6
+      minOverlap: 2,
+      minLength: 4,
+      maxLength: 6,
+      fragmentCount: 6
     },
     defaultFragments: ['ATGGC', 'GGCGT', 'CGTGCA']
   },
@@ -18,10 +18,10 @@ export const PRESETS: readonly Preset[] = [
     description: '11 character alphabet progression (ABCDEFGHIJK)',
     params: {
       source: 'ABCDEFGHIJK',
-      n: 2,
-      a: 3,
-      b: 5,
-      m: 6
+      minOverlap: 2,
+      minLength: 3,
+      maxLength: 5,
+      fragmentCount: 6
     },
     defaultFragments: ['ABCDE', 'CDEFG', 'EFGHI', 'GHIJK']
   },
@@ -30,10 +30,10 @@ export const PRESETS: readonly Preset[] = [
     description: 'Full sentence with repeats (THE QUICK BROWN FOX ...)',
     params: {
       source: 'THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG',
-      n: 3,
-      a: 8,
-      b: 15,
-      m: 12
+      minOverlap: 3,
+      minLength: 8,
+      maxLength: 15,
+      fragmentCount: 12
     }
   },
   {
@@ -41,10 +41,10 @@ export const PRESETS: readonly Preset[] = [
     description: 'Simple test case (ABC, BCD, CDE)',
     params: {
       source: 'ABCDE',
-      n: 2,
-      a: 3,
-      b: 3,
-      m: 3
+      minOverlap: 2,
+      minLength: 3,
+      maxLength: 3,
+      fragmentCount: 3
     },
     defaultFragments: ['ABC', 'BCD', 'CDE']
   }

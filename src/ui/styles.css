@@ -13,8 +13,8 @@
   --accent-rose: #f43f5e;
   --accent-purple: #a855f7;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    sans-serif;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 * {
@@ -111,8 +111,24 @@ header p {
   gap: 0.25rem;
 }
 
-.form-group.full-width {
-  grid-column: 1 / -1;
+.form-group.compact {
+  margin-bottom: 0.5rem;
+}
+
+.form-group.spaced {
+  margin-bottom: 1rem;
+}
+
+.custom-editor {
+  margin-top: 1rem;
+}
+
+.custom-editor .btn-row {
+  margin-top: 0.5rem;
+}
+
+[hidden] {
+  display: none !important;
 }
 
 label {
@@ -491,4 +507,8 @@ input[type='range'] {
 .legend-box.gap {
   background-color: rgba(100, 116, 139, 0.2);
   border: 1px dashed var(--border-color);
+}
+
+.metrics-row.spaced {
+  margin-top: 1.5rem;
 }

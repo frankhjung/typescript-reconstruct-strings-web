@@ -4,7 +4,6 @@ import {
   assembleWithTrace,
   calculateOverlap,
   filterContainedFragments,
-  findBestOverlap,
   mergePair,
   sortCanonical
 } from '../src/assembler.js'
@@ -96,7 +95,9 @@ describe('filterContainedFragments', () => {
   it('filters proper substrings', () => {
     const { kept, removed } = filterContainedFragments(['ACGT', 'CGT'])
     assert.deepEqual(kept, ['ACGT'])
-    assert.ok(removed.includes('CGT'))
+    assert.ok(
+      removed.some((r) => r.fragment === 'CGT' && r.reason === 'contained')
+    )
   })
 })
 

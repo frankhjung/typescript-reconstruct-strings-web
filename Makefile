@@ -27,7 +27,12 @@ install: package.json ## Install npm dependencies
 	@npm install
 
 .PHONY: check
-check: typecheck ## Run static checks
+check: typecheck lint ## Run static checks
+
+.PHONY: lint
+lint: $(SRCS) ## Validate source code with ESLint
+	@echo lint ...
+	@npm run lint
 
 .PHONY: typecheck
 typecheck: $(SRCS) ## Validate TypeScript types
@@ -38,6 +43,11 @@ typecheck: $(SRCS) ## Validate TypeScript types
 build: $(SRCS) ## Build project bundle
 	@echo build ...
 	@npm run build
+
+.PHONY: serve
+serve: build ## Serve the application locally
+	@echo serve ...
+	@npm run serve
 
 .PHONY: test
 test: ## Run test suite

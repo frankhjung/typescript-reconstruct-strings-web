@@ -26,15 +26,17 @@ sequenceDiagram
   autonumber
   actor User
   participant UI as Controls UI
+  participant App as App Controller
   participant Gen as Generator
   participant Asm as Assembler
   participant Align as Alignment
   participant View as View Renderers
 
   User->>UI: Select Preset / Generate
-  UI->>Gen: generateFragments(params)
-  Gen-->>UI: fragments
-  UI->>Asm: assembleWithTrace(fragments, minOverlap)
+  UI->>App: handleGenerate(params)
+  App->>Gen: generateFragments(params)
+  Gen-->>App: fragments
+  App->>Asm: assembleWithTrace(fragments, minOverlap)
   Note over Asm: Pre-filter containment & duplicates
   loop Iterative Reduction
     Asm->>Asm: findBestOverlap(pool, minOverlap)
@@ -42,12 +44,13 @@ sequenceDiagram
     Asm->>Asm: filterContainedFragments(pool)
   end
   Asm->>Asm: sortCanonical(contigs)
-  Asm-->>UI: AssemblyResult (steps, contigs)
+  Asm-->>App: AssemblyResult (steps, contigs)
   loop Playback / Step Scrubbing
-    UI->>Align: alignContigsToSource(source, currentStep.pool)
-    Align-->>UI: AlignmentReport
-    UI->>View: renderPoolHtml / renderMergeTheatreHtml / renderDiffViewHtml
-    View-->>User: Render updated DOM elements
+    App->>Align: alignContigsToSource(source, currentStep.pool)
+    Align-->>App: AlignmentReport
+    App->>View: renderPoolHtml / renderMergeTheatreHtml / renderDiffViewHtml
+    View-->>App: Rendered HTML strings
+    App-->>User: Update DOM elements
   end
 ```
 
@@ -55,7 +58,7 @@ sequenceDiagram
 
 ### Prerequisites
 
-- Node.js (>= 18 recommended)
+- Node.js (>= 18.19.0 recommended, or 20+)
 - npm (Node Package Manager)
 
 ### Installation
@@ -84,13 +87,52 @@ xdg-open dist/index.html
 open dist/index.html
 ```
 
-Alternatively, serve the `dist/` directory with any local HTTP server:
+Alternatively, serve the built application locally using the bundled Node
+server:
 
 ```bash
-python3 -m http.server 8080 --directory dist
+npm run serve
+# or
+make serve
 ```
 
-### Development Pipeline
+By default, this serves `dist/` on port 8080 (configurable via the `PORT`
+environment variable).
+
+### URL Parameters
+
+The application supports URL query parameters for deep linking:
+
+- `?preset=<index>`: Load a specific preset configuration on startup (0-indexed).
+- `?step=<index>`: Jump to a specific animation step.
+
+## Assembly Mechanics
+
+### Generator Parameters
+
+The fragment generator supports the following bounds:
+
+- `minOverlap` (n): Minimum suffix-prefix overlap to qualify for merging (>= 2).
+- `minLength` (a): Minimum length of generated fragments (>= 2).
+- `maxLength` (b): Maximum length of generated fragments (>= a).
+- `fragmentCount` (m): Total number of fragments to sample from the source.
+
+The application enforces limits to prevent denial-of-service in the O(k²·L²)
+assembly step:
+
+- Maximum source length: 10,000 characters.
+- Maximum fragment count: 500 fragments.
+
+### Haskell Parity
+
+This implementation ensures deterministic parity with the Haskell reference
+implementation of `reconstruct-strings`, relying on strict tie-breaking rules:
+
+1. **Longest Overlap Match:** Prefers candidates with the highest `matchLength`.
+2. **Code Unit Order (Prefix):** Tie-breaks on the prefix fragment lexicographically using code unit order.
+3. **Code Unit Order (Suffix):** Tie-breaks on the suffix fragment lexicographically using code unit order.
+
+## Development Pipeline
 
 Run the default pipeline (static checks, build bundle, and test suite):
 
@@ -98,41 +140,31 @@ Run the default pipeline (static checks, build bundle, and test suite):
 make
 ```
 
-Individual development targets:
+Available development targets:
 
-- **Typecheck:** Validates TypeScript types without emitting output.
-
-  ```bash
-  make typecheck
-  # or
-  npm run typecheck
-  ```
-
-- **Test:** Executes the full unit and view test suite.
-
-  ```bash
-  make test
-  # or
-  npm run test
-  ```
-
-- **Clean:** Removes compiled distribution artefacts.
-
-  ```bash
-  make clean
-  ```
-
-Run `make help` to inspect all available targets.
+- **`make all`:** Runs `install`, `check`, `build`, and `test` sequentially.
+- **`make check`:** Alias for running static type checks and linting.
+- **`make typecheck`:** Validates TypeScript types without emitting output.
+- **`make test`:** Executes the full unit and view test suite.
+- **`make build`:** Generates the standalone HTML bundle using esbuild.
+- **`make clean`:** Removes compiled distribution artefacts (`dist/`).
+- **`make cleanall`:** Purges `dist/` and `node_modules/`.
 
 ## Project Structure
 
-- `src/`: TypeScript source code and view templates.
-- `src/ui/`: Pure declarative view templates and controls.
-- `static/`: HTML template wrapper.
-- `dist/`: Generated standalone distribution bundle
-  ([index.html](dist/index.html)).
+- `src/`: TypeScript source code.
+  - `alignment.ts`: Real-time contig alignment verification.
+  - `assembler.ts`: The core OLC iterative reduction assembler.
+  - `generator.ts`: Fragment sampling logic and parameter validation.
+  - `main.ts`: Application controller wiring UI to domain logic.
+  - `presets.ts`: Built-in sequence presets.
+  - `types.ts`: Core domain interfaces.
+  - `ui/`: Pure HTML template renderers for DOM views.
+- `static/index.html`: Base HTML template.
+- `dist/`: Generated standalone distribution bundle.
 - `test/`: Automated test suite (assembler, generator, alignment, views).
-- `build.mjs`: Standalone inlining build script utilising `esbuild`.
+- `build.mjs`: Standalone esbuild script.
+- `.github/workflows/pages.yml`: Automated deployment to GitHub Pages.
 
 ## License
 

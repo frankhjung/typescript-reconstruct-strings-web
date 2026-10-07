@@ -1,79 +1,81 @@
-import { AssemblyStep } from '../types.js'
+import type { AssemblyStep } from '../types.js'
 import { escapeHtml } from './escape.js'
+import { stepDetails } from './stepDetails.js'
+
+const GAP_CELL = '<div class="char-cell gap"></div>'
+
+function cell(cls: string, char: string): string {
+  return `<div class="${cls}">${escapeHtml(char)}</div>`
+}
+
+function row(label: string, cells: string): string {
+  return `
+    <div class="alignment-row">
+      <span class="align-label">${label}:</span>
+      <div class="seq-box">${cells}</div>
+    </div>
+  `
+}
 
 /**
  * Pure template renderer for the merge theatre demonstrating suffix-prefix
  * sliding alignment and fused contig output.
  */
 export function renderMergeTheatreHtml(step: AssemblyStep | null): string {
-  if (!step || !('candidate' in step) || !step.candidate) {
-    const msg = step?.type === 'completed'
-      ? 'Assembly complete. See reference comparison below.'
-      : 'No active merge in this step. Step forward to observe pairwise overlap.'
+  const candidate = step ? stepDetails(step).candidate : undefined
+  if (!step || !candidate) {
+    const msg =
+      step?.type === 'completed'
+        ? 'Assembly complete. See reference comparison below.'
+        : 'No active merge in this step. ' +
+          'Step forward to observe pairwise overlap.'
     return `<div class="theatre-empty">${msg}</div>`
   }
 
-  const { prefix, suffix, matchLength } = step.candidate
+  const { prefix, suffix, matchLength } = candidate
   const prefixNonOverlapLen = prefix.length - matchLength
 
-  // Prefix row
-  const prefixCells = Array.from(prefix).map((char, i) => {
-    const cls = i >= prefixNonOverlapLen ? 'char-cell overlap' : 'char-cell prefix-char'
-    return `<div class="${cls}">${escapeHtml(char)}</div>`
-  }).join('')
+  const prefixCells = Array.from(prefix)
+    .map((char, i) =>
+      cell(
+        i >= prefixNonOverlapLen
+          ? 'char-cell overlap'
+          : 'char-cell prefix-char',
+        char
+      )
+    )
+    .join('')
 
-  const prefixRow = `
-    <div class="alignment-row">
-      <span class="align-label">Prefix:</span>
-      <div class="seq-box">${prefixCells}</div>
-    </div>
-  `
+  // Suffix row is shifted to align the overlap columns
+  const suffixCells = Array.from(suffix)
+    .map((char, i) =>
+      cell(
+        i < matchLength ? 'char-cell overlap' : 'char-cell suffix-char',
+        char
+      )
+    )
+    .join('')
 
-  // Suffix row (shifted to align overlap columns)
-  const spacerCells = '<div class="char-cell gap"></div>'.repeat(prefixNonOverlapLen)
-  const suffixCells = Array.from(suffix).map((char, i) => {
-    const cls = i < matchLength ? 'char-cell overlap' : 'char-cell suffix-char'
-    return `<div class="${cls}">${escapeHtml(char)}</div>`
-  }).join('')
-
-  const suffixRow = `
-    <div class="alignment-row">
-      <span class="align-label">Suffix:</span>
-      <div class="seq-box">${spacerCells}${suffixCells}</div>
-    </div>
-  `
-
-  // Merged Contig (if in merge-pair or later)
   let mergedRow = ''
   if (step.type === 'merge-pair' || step.type === 'filter-dynamic') {
     const mergedStr = prefix + suffix.slice(matchLength)
-    const mergedCells = Array.from(mergedStr).map((char, i) => {
-      let cls = 'char-cell suffix-char'
-      if (i < prefixNonOverlapLen) {
-        cls = 'char-cell prefix-char'
-      } else if (i < prefix.length) {
-        cls = 'char-cell overlap'
-      }
-      return `<div class="${cls}">${escapeHtml(char)}</div>`
-    }).join('')
-
-    mergedRow = `
-      <div class="alignment-row">
-        <span class="align-label">Merged:</span>
-        <div class="seq-box">${mergedCells}</div>
-      </div>
-    `
+    const mergedCells = Array.from(mergedStr)
+      .map((char, i) => {
+        let cls = 'char-cell suffix-char'
+        if (i < prefixNonOverlapLen) {
+          cls = 'char-cell prefix-char'
+        } else if (i < prefix.length) {
+          cls = 'char-cell overlap'
+        }
+        return cell(cls, char)
+      })
+      .join('')
+    mergedRow = row('Merged', mergedCells)
   }
 
-  return prefixRow + suffixRow + mergedRow
-}
-
-/**
- * Render the merge theatre (backward-compatible adapter).
- */
-export function renderMergeTheatre(
-  container: HTMLElement,
-  step: AssemblyStep | null
-): void {
-  container.innerHTML = renderMergeTheatreHtml(step)
+  return (
+    row('Prefix', prefixCells) +
+    row('Suffix', GAP_CELL.repeat(prefixNonOverlapLen) + suffixCells) +
+    mergedRow
+  )
 }

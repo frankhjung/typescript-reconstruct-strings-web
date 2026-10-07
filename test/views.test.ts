@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { renderPoolHtml } from '../src/ui/poolView.js'
 import { renderMergeTheatreHtml } from '../src/ui/mergeView.js'
 import { renderDiffViewHtml } from '../src/ui/diffView.js'
-import { AlignmentReport, AssemblyStep } from '../src/types.js'
+import type { AlignmentReport, AssemblyStep } from '../src/types.js'
 
 describe('Declarative Views - Pool View', () => {
   it('renders empty string when step is null', () => {
@@ -48,7 +48,7 @@ describe('Declarative Views - Pool View', () => {
       type: 'filter-dynamic',
       pool: ['ABCD'],
       mergedFragment: 'ABCD',
-      removedFragments: ['BC'],
+      removedFragments: [{ fragment: 'BC', reason: 'contained' }],
       description: 'Filtered contained'
     }
     const html = renderPoolHtml(step)
@@ -132,7 +132,7 @@ describe('Declarative Views - Diff / Alignment View', () => {
       coveragePercent: 100,
       coveredSpans: [{ start: 0, end: 5 }],
       uncoveredSpans: [],
-      alignments: [{ contig: 'ABCDE', sourceStart: 0, length: 5, isExact: true }],
+      alignments: [{ contig: 'ABCDE', sourceStart: 0, isExact: true }],
       unalignedContigs: [],
       summary: 'PERFECT RECONSTRUCTION'
     }
@@ -153,7 +153,7 @@ describe('Declarative Views - Diff / Alignment View', () => {
       coveragePercent: 50,
       coveredSpans: [{ start: 0, end: 3 }],
       uncoveredSpans: [{ start: 3, end: 6 }],
-      alignments: [{ contig: 'ABC', sourceStart: 0, length: 3, isExact: true }],
+      alignments: [{ contig: 'ABC', sourceStart: 0, isExact: true }],
       unalignedContigs: ['ZZZ'],
       summary: 'MISASSEMBLY DETECTED'
     }
@@ -204,7 +204,7 @@ describe('Security - HTML Sanitisation', () => {
       coveragePercent: 100,
       coveredSpans: [{ start: 0, end: 5 }],
       uncoveredSpans: [],
-      alignments: [{ contig: '<SRC>', sourceStart: 0, length: 5, isExact: true }],
+      alignments: [{ contig: '<SRC>', sourceStart: 0, isExact: true }],
       unalignedContigs: [],
       summary: '<b onmouseover=alert(1)>Summary</b>'
     }

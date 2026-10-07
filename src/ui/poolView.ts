@@ -1,5 +1,13 @@
-import { AssemblyStep } from '../types.js'
+import type { AssemblyStep, RemovedFragment } from '../types.js'
 import { escapeHtml } from './escape.js'
+import { stepDetails } from './stepDetails.js'
+
+function removalBadge(removed: RemovedFragment): string {
+  if (removed.reason === 'duplicate') {
+    return `Duplicate &times;${removed.copies ?? 1}`
+  }
+  return 'Contained'
+}
 
 /**
  * Pure template renderer for the fragment pool workspace.
@@ -9,48 +17,39 @@ export function renderPoolHtml(step: AssemblyStep | null): string {
     return ''
   }
 
-  const pool = step.pool
-  const candidate = 'candidate' in step ? step.candidate : undefined
-  const mergedFragment = 'mergedFragment' in step ? step.mergedFragment : undefined
-  const removed = 'removedFragments' in step ? (step.removedFragments ?? []) : []
+  const { candidate, mergedFragment, removed } = stepDetails(step)
 
-  const activeCards = pool.map(fragment => {
-    const isPrefix = candidate?.prefix === fragment
-    const isSuffix = candidate?.suffix === fragment
-    const isNewMerged = mergedFragment === fragment
+  const activeCards = step.pool
+    .map((fragment) => {
+      let activeClass = ''
+      let badgeHtml = ''
 
-    let activeClass = ''
-    let badgeHtml = ''
+      if (candidate?.prefix === fragment) {
+        activeClass = ' active-prefix'
+        badgeHtml = '<span class="badge prefix">Prefix</span>'
+      } else if (candidate?.suffix === fragment) {
+        activeClass = ' active-suffix'
+        badgeHtml = '<span class="badge suffix">Suffix</span>'
+      } else if (mergedFragment === fragment) {
+        activeClass = ' merged-new'
+        badgeHtml = '<span class="badge merged">Merged</span>'
+      }
 
-    if (isPrefix) {
-      activeClass = ' active-prefix'
-      badgeHtml = '<span class="badge prefix">Prefix</span>'
-    } else if (isSuffix) {
-      activeClass = ' active-suffix'
-      badgeHtml = '<span class="badge suffix">Suffix</span>'
-    } else if (isNewMerged) {
-      activeClass = ' merged-new'
-      badgeHtml = '<span class="badge merged">Merged</span>'
-    }
+      return (
+        `<div class="fragment-card${activeClass}">` +
+        `<span>${escapeHtml(fragment)}</span>${badgeHtml}</div>`
+      )
+    })
+    .join('')
 
-    const safeFragment = escapeHtml(fragment)
-    return `<div class="fragment-card${activeClass}"><span>${safeFragment}</span>${badgeHtml}</div>`
-  }).join('')
-
-  const removedCards = removed.map(rem => {
-    const safeRem = escapeHtml(rem)
-    return `<div class="fragment-card removed"><span>${safeRem}</span><span class="badge removed">Contained</span></div>`
-  }).join('')
+  const removedCards = removed
+    .map(
+      (r) =>
+        `<div class="fragment-card removed">` +
+        `<span>${escapeHtml(r.fragment)}</span>` +
+        `<span class="badge removed">${removalBadge(r)}</span></div>`
+    )
+    .join('')
 
   return activeCards + removedCards
-}
-
-/**
- * Render the fragment pool cards in the workspace grid (backward-compatible adapter).
- */
-export function renderPool(
-  container: HTMLElement,
-  step: AssemblyStep | null
-): void {
-  container.innerHTML = renderPoolHtml(step)
 }
