@@ -1,11 +1,15 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  assemble,
   assembleWithTrace,
   calculateOverlap,
   filterContainedFragments,
   mergePair,
-  sortCanonical
+  sortCanonical,
+  startSession,
+  stepSession,
+  traceAssembly
 } from '../src/assembler.js'
 
 describe('Assembler - Deterministic Greedy Reduction', () => {
@@ -107,3 +111,78 @@ describe('sortCanonical', () => {
     assert.deepEqual(sorted, ['AAA', 'ZZZ', 'A', 'B'])
   })
 })
+
+describe('assemble (Pure Functional Reduction)', () => {
+  it('assembles valid overlapping fragments into canonical contigs', () => {
+    const input = ['ABC', 'BCD', 'CDE']
+    const contigs = assemble(input, 2)
+    assert.deepEqual(contigs, ['ABCDE'])
+  })
+
+  it('guarantees permutation invariance (property test)', () => {
+    const permutations = [
+      ['DEF', 'ABC'],
+      ['ABC', 'DEF']
+    ]
+    const results = permutations.map((p) => assemble(p, 2))
+    assert.deepEqual(results[0], ['ABC', 'DEF'])
+    assert.deepEqual(results[0], results[1])
+  })
+
+  it('guarantees idempotence of assembled contigs', () => {
+    const input = ['ATGGC', 'GGCGT', 'CGTGCA']
+    const once = assemble(input, 2)
+    const twice = assemble(once, 2)
+    assert.deepEqual(once, ['ATGGCGTGCA'])
+    assert.deepEqual(twice, once)
+  })
+
+  it('eliminates duplicates and proper substrings purely', () => {
+    const input = ['ACGT', 'ACGT', 'CGT']
+    const contigs = assemble(input, 2)
+    assert.deepEqual(contigs, ['ACGT'])
+  })
+
+  it('throws on invalid overlap or empty fragments', () => {
+    assert.throws(() => assemble(['ACGT'], 0), {
+      message: /Invalid minimum overlap/
+    })
+    assert.throws(() => assemble(['ACGT', ''], 2), {
+      message: /Empty fragment/
+    })
+  })
+})
+
+describe('traceAssembly & Session Unfold', () => {
+  it('emits a typed sequence of domain reduction events', () => {
+    const input = ['ABC', 'BCD']
+    const events = traceAssembly(input, 2)
+    assert.ok(events.length >= 3)
+    assert.equal(events[0]?.kind, 'initial-filtered')
+    assert.equal(events[1]?.kind, 'candidate-selected')
+    assert.equal(events[2]?.kind, 'pair-merged')
+    const last = events[events.length - 1]
+    assert.ok(last)
+    assert.equal(last.kind, 'assembly-completed')
+    if ('contigs' in last) {
+      assert.deepEqual(last.contigs, ['ABCD'])
+    }
+  })
+
+  it('steps through reduction session iteratively until complete', () => {
+    let session = startSession(['ABC', 'BCD'], 2)
+    assert.equal(session.isComplete, false)
+
+    const events: string[] = []
+    while (!session.isComplete) {
+      const step = stepSession(session)
+      session = step.session
+      events.push(step.event.kind)
+    }
+
+    assert.equal(session.isComplete, true)
+    assert.ok(events.includes('assembly-completed'))
+    assert.deepEqual(session.pool, ['ABCD'])
+  })
+})
+

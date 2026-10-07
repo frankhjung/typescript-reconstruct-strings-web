@@ -15,6 +15,9 @@ guides for the **reconstruct-strings-web** project.
   Functional requirements, generation parameters, deterministic greedy overlap
   reduction semantics, animation state machine, visual layout, and single-file
   standalone architecture.
+- [Data-Oriented Assembly Reduction (REQ-002)][req-002]:
+  Pure algebraic data events and session transitions decoupling reduction
+  from trace narration.
 
 ### Domain Theory and Parameter Analysis
 
@@ -29,3 +32,4 @@ guides for the **reconstruct-strings-web** project.
 [glossary]: GLOSSARY.md
 [heuristics]: heuristics.md
 [req-001]: REQ-001-interactive-olc-assembler-animation.md
+[req-002]: REQ-002-data-oriented-assembly-reduction.md

@@ -28,7 +28,7 @@ sequenceDiagram
   participant UI as Controls UI
   participant App as App Controller
   participant Gen as Generator
-  participant Asm as Assembler
+  participant Asm as Assembler Engine
   participant Align as Alignment
   participant View as View Renderers
 
@@ -36,15 +36,13 @@ sequenceDiagram
   UI->>App: handleGenerate(params)
   App->>Gen: generateFragments(params)
   Gen-->>App: fragments
-  App->>Asm: assembleWithTrace(fragments, minOverlap)
-  Note over Asm: Pre-filter containment & duplicates
-  loop Iterative Reduction
-    Asm->>Asm: findBestOverlap(pool, minOverlap)
-    Asm->>Asm: mergePair(prefix, suffix)
-    Asm->>Asm: filterContainedFragments(pool)
+  App->>Asm: traceAssembly(fragments, minOverlap)
+  Asm->>Asm: startSession(fragments, minOverlap)
+  loop Pure Session Unfold (until complete)
+    Asm->>Asm: stepSession(session)
+    Note over Asm: Emits ReductionEvent (filter / select / merge)
   end
-  Asm->>Asm: sortCanonical(contigs)
-  Asm-->>App: AssemblyResult (steps, contigs)
+  Asm-->>App: ReductionEvent[] / AssemblyResult
   loop Playback / Step Scrubbing
     App->>Align: alignContigsToSource(source, currentStep.pool)
     Align-->>App: AlignmentReport
@@ -160,6 +158,9 @@ the [`docs/`](docs/README.md) directory:
 - [Interactive OLC Assembler Specification (REQ-001)][req-001]:
   Functional requirements, generation parameters, state machine transitions,
   and standalone delivery model.
+- [Data-Oriented Assembly Reduction (REQ-002)][req-002]:
+  Pure algebraic data events and session transitions decoupling reduction
+  from trace narration.
 - [Assembly Dynamics and Parameter Heuristics][docs-heuristics]:
   Mathematical collision models, overlap lower and upper bounds,
   Lander–Waterman coverage depth, and calibrated parameter configurations.
@@ -172,6 +173,7 @@ the [`docs/`](docs/README.md) directory:
 [docs-heuristics]: docs/heuristics.md
 [docs-index]: docs/README.md
 [req-001]: docs/REQ-001-interactive-olc-assembler-animation.md
+[req-002]: docs/REQ-002-data-oriented-assembly-reduction.md
 
 ## Development Pipeline
 
@@ -185,7 +187,8 @@ Available development targets:
 
 - **`make all`:** Runs `install`, `check`, `build`, and `test` sequentially.
 - **`make check`:** Alias for running static type checks and linting.
-- **`make upgrade`:** Refreshes dependency versions in `package.json` and reinstalls them.
+- **`make upgrade`:** Refreshes dependency versions in `package.json` and
+  reinstalls them.
 - **`make typecheck`:** Validates TypeScript types without emitting output.
 - **`make test`:** Executes the full unit and view test suite.
 - **`make build`:** Generates the standalone HTML bundle using esbuild.

@@ -23,6 +23,52 @@ export interface RemovedFragment {
   readonly copies?: number
 }
 
+/**
+ * Closed discriminated union of pure domain events emitted during assembly.
+ * Unlike AssemblyStep, ReductionEvent contains no presentation strings.
+ */
+export type ReductionEvent =
+  | {
+      readonly kind: 'initial-filtered'
+      readonly pool: readonly string[]
+      readonly removed: readonly RemovedFragment[]
+    }
+  | {
+      readonly kind: 'candidate-selected'
+      readonly pool: readonly string[]
+      readonly candidate: OverlapCandidate
+    }
+  | {
+      readonly kind: 'pair-merged'
+      readonly pool: readonly string[]
+      readonly candidate: OverlapCandidate
+      readonly mergedFragment: string
+    }
+  | {
+      readonly kind: 'dynamic-filtered'
+      readonly pool: readonly string[]
+      readonly removed: readonly RemovedFragment[]
+      readonly mergedFragment: string
+    }
+  | {
+      readonly kind: 'assembly-completed'
+      readonly pool: readonly string[]
+      readonly contigs: readonly string[]
+    }
+
+/**
+ * Immutable snapshot of an in-progress reduction session.
+ */
+export interface ReductionSession {
+  readonly pool: readonly string[]
+  readonly minOverlap: number
+  readonly isComplete: boolean
+  readonly stage?: 'init' | 'select' | 'merge' | 'dynamic-filter' | 'done'
+  readonly pendingCandidate?: OverlapCandidate
+  readonly pendingMerged?: string
+  readonly pendingDynamicRemoved?: readonly RemovedFragment[]
+}
+
 /** Fields shared by every step of the assembly trace. */
 export interface BaseAssemblyStep {
   readonly stepIndex: number

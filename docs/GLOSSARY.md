@@ -73,6 +73,22 @@ misassembly errors. Distinct from a suffix-prefix Overlap between fragments.
 
 _Avoid_: Overlap
 
+## Reduction Event
+
+An immutable record of a discrete state transition during greedy sequence
+reduction, encapsulating pure domain state (active pool, selected candidate,
+removed fragments, or merged contig) without presentation narration.
+
+_Avoid_: Step Description, Log Entry
+
+## Reduction Session
+
+An immutable state snapshot representing an ongoing overlap reduction
+process, maintaining the active pool, minimum overlap threshold, and completion
+status.
+
+_Avoid_: Assembler State, State Machine
+
 ## Strand
 
 An independent random substring sampled from a contiguous block of text.
@@ -80,3 +96,4 @@ Within the context of this project, a "Strand" is synonymous with a simulated
 "Fragment".
 
 _Avoid_: Partition
+

@@ -1,14 +1,16 @@
 import type {
   AssemblyStep,
   OverlapCandidate,
+  ReductionEvent,
+  ReductionSession,
   RemovedFragment
 } from './types.js'
 
 /**
  * Compare two strings in UTF-16 code unit order.
  *
- * This is locale independent, ensuring deterministic code point comparisons
- * across environments (unlike `String.localeCompare`).
+ * This comparison is locale-independent, ensuring deterministic code point
+ * ordering across all runtime environments.
  */
 export function compareStrings(a: string, b: string): number {
   if (a < b) {
@@ -45,10 +47,10 @@ export function calculateOverlap(
 }
 
 /**
- * Compare candidates using strict three-tier deterministic total order:
+ * Compare candidates using a strict three-tier deterministic total order:
  * 1. Longest overlap match length (descending)
- * 2. Smaller prefix fragment in code unit order (ascending)
- * 3. Smaller suffix fragment in code unit order (ascending)
+ * 2. Smaller prefix fragment in UTF-16 code unit order (ascending)
+ * 3. Smaller suffix fragment in UTF-16 code unit order (ascending)
  */
 export function compareCandidates(
   a: OverlapCandidate,
@@ -64,7 +66,8 @@ export function compareCandidates(
 }
 
 /**
- * Find the single best overlap candidate across all ordered fragment pairs.
+ * Find the single best overlap candidate across all ordered fragment pairs
+ * in the active pool according to the deterministic total order.
  */
 export function findBestOverlap(
   pool: readonly string[],
@@ -99,7 +102,9 @@ export function findBestOverlap(
 }
 
 /**
- * Merge two fragments along an overlapping boundary.
+ * Merge two fragments along an exact suffix-prefix overlapping boundary.
+ * Concatenates the prefix fragment with the non-overlapping remainder
+ * of the suffix fragment.
  */
 export function mergePair(
   prefix: string,
@@ -110,7 +115,8 @@ export function mergePair(
 }
 
 /**
- * Check if s1 is a proper substring of s2.
+ * Test whether candidate string s1 is a proper substring of container s2
+ * (contained within s2 and strictly not equal to s2).
  */
 export function isProperSubstringOf(s1: string, s2: string): boolean {
   return s1 !== s2 && s2.includes(s1)
@@ -118,13 +124,12 @@ export function isProperSubstringOf(s1: string, s2: string): boolean {
 
 /**
  * Eliminate exact duplicates and any fragments fully contained as proper
- * substrings inside longer fragments.
+ * substrings inside longer fragments within the pool.
  */
 export function filterContainedFragments(fragments: readonly string[]): {
   readonly kept: readonly string[]
   readonly removed: readonly RemovedFragment[]
 } {
-  // Preserve order of first appearance for duplicates
   const uniqueFragments = Array.from(new Set(fragments))
   const contained: RemovedFragment[] = []
   const kept: string[] = []
@@ -140,7 +145,6 @@ export function filterContainedFragments(fragments: readonly string[]): {
     }
   }
 
-  // Also track exact duplicate instances that were dropped
   const counts = new Map<string, number>()
   for (const fragment of fragments) {
     counts.set(fragment, (counts.get(fragment) ?? 0) + 1)
@@ -156,7 +160,8 @@ export function filterContainedFragments(fragments: readonly string[]): {
 }
 
 /**
- * Describe a removed fragment in plain text, for step descriptions.
+ * Format a human-readable text explanation of why a fragment was removed
+ * from the pool (duplicate or proper substring containment).
  */
 export function describeRemoved(removed: RemovedFragment): string {
   if (removed.reason === 'contained') {
@@ -170,7 +175,7 @@ export function describeRemoved(removed: RemovedFragment): string {
 /**
  * Sort contigs into canonical output order:
  * 1. Descending sequence length (longer first)
- * 2. Ascending sequence order (code unit order)
+ * 2. Ascending sequence order (UTF-16 code unit order)
  */
 export function sortCanonical(contigs: readonly string[]): readonly string[] {
   return [...contigs].sort((a, b) => {
@@ -181,20 +186,15 @@ export function sortCanonical(contigs: readonly string[]): readonly string[] {
   })
 }
 
-/** Final contigs plus the full animation trace. */
-export interface AssemblyResult {
-  readonly contigs: readonly string[]
-  readonly steps: readonly AssemblyStep[]
-}
-
 /**
- * Assemble fragments into contigs while capturing an immutable trace
- * of animation steps.
+ * Validate input preconditions for sequence assembly:
+ * - Minimum overlap must be an integer >= 1
+ * - Fragment pool must not contain empty strings
  */
-export function assembleWithTrace(
+export function validateAssemblyInputs(
   rawFragments: readonly string[],
   minOverlap: number
-): AssemblyResult {
+): void {
   if (!Number.isInteger(minOverlap) || minOverlap < 1) {
     throw new Error(
       `Invalid minimum overlap: must be an integer >= 1 (got ${minOverlap})`
@@ -203,35 +203,21 @@ export function assembleWithTrace(
   if (rawFragments.some((f) => f.length === 0)) {
     throw new Error('Empty fragment encountered in input.')
   }
+}
 
-  const steps: AssemblyStep[] = []
-  let stepIndex = 0
-
-  // Step 0: Initial Raw Pool
-  steps.push({
-    stepIndex: stepIndex++,
-    type: 'init',
-    pool: [...rawFragments],
-    description: `Initialised raw pool with ${rawFragments.length} fragments.`
-  })
-
-  // Step 1: Pre-processing deduplication & containment filtering
-  const { kept: initialPool, removed: initialRemoved } =
-    filterContainedFragments(rawFragments)
-
-  steps.push({
-    stepIndex: stepIndex++,
-    type: 'filter-initial',
-    pool: [...initialPool],
-    removedFragments: initialRemoved,
-    description:
-      initialRemoved.length > 0
-        ? `Filtered ${initialRemoved.length} redundant fragments ` +
-          `(duplicates/substrings). Active pool: ${initialPool.length}.`
-        : `All ${initialPool.length} fragments are unique and uncontained.`
-  })
-
-  // Iterative reduction loop
+/**
+ * Assemble raw fragments into contigs using greedy overlap reduction.
+ *
+ * Performs deterministic pre-filtering, iterative best-overlap merging with
+ * dynamic containment elimination, and canonical contig sorting. Returns
+ * assembled contigs directly without intermediate animation trace overhead.
+ */
+export function assemble(
+  rawFragments: readonly string[],
+  minOverlap: number
+): readonly string[] {
+  validateAssemblyInputs(rawFragments, minOverlap)
+  const { kept: initialPool } = filterContainedFragments(rawFragments)
   let pool = [...initialPool]
 
   while (pool.length > 1) {
@@ -239,19 +225,6 @@ export function assembleWithTrace(
     if (!candidate) {
       break
     }
-
-    // Step: Selected best overlap pair
-    steps.push({
-      stepIndex: stepIndex++,
-      type: 'find-overlap',
-      pool: [...pool],
-      candidate,
-      description:
-        `Found best overlap of length ${candidate.matchLength} between ` +
-        `prefix "${candidate.prefix}" and suffix "${candidate.suffix}".`
-    })
-
-    // Step: Merge pair
     const merged = mergePair(
       candidate.prefix,
       candidate.suffix,
@@ -260,61 +233,331 @@ export function assembleWithTrace(
     const remaining = pool.filter(
       (f) => f !== candidate.prefix && f !== candidate.suffix
     )
-    const preFilteredPool = [merged, ...remaining]
-
-    steps.push({
-      stepIndex: stepIndex++,
-      type: 'merge-pair',
-      pool: preFilteredPool,
-      candidate,
-      mergedFragment: merged,
-      description:
-        `Merged "${candidate.prefix}" and "${candidate.suffix}" into ` +
-        `"${merged}".`
-    })
-
-    // Step: Dynamic containment filtering
-    const { kept: updatedPool, removed: dynamicRemoved } =
-      filterContainedFragments(preFilteredPool)
-
-    if (dynamicRemoved.length > 0) {
-      steps.push({
-        stepIndex: stepIndex++,
-        type: 'filter-dynamic',
-        pool: [...updatedPool],
-        removedFragments: dynamicRemoved,
-        mergedFragment: merged,
-        description:
-          `Dynamic containment: eliminated ` +
-          `${dynamicRemoved.map(describeRemoved).join(', ')} ` +
-          `engulfed by new sequence.`
-      })
-    }
-
-    pool = [...updatedPool]
+    const { kept } = filterContainedFragments([merged, ...remaining])
+    pool = [...kept]
   }
 
-  // Final Step: Canonical sort
-  const sortedContigs = sortCanonical(pool)
+  return sortCanonical(pool)
+}
+
+/**
+ * Initialise an immutable reduction session for stepwise assembly.
+ *
+ * Prepares the active pool and marks the session ready for iterative
+ * execution via {@link stepSession}.
+ */
+export function startSession(
+  rawFragments: readonly string[],
+  minOverlap: number
+): ReductionSession {
+  validateAssemblyInputs(rawFragments, minOverlap)
+  return {
+    pool: [...rawFragments],
+    minOverlap,
+    isComplete: false,
+    stage: 'init'
+  }
+}
+
+/**
+ * Advance an assembly reduction session by a single discrete transition.
+ *
+ * Returns the updated immutable session and the corresponding domain event
+ * (initial filtering, candidate selection, merging, dynamic containment,
+ * or assembly completion).
+ */
+export function stepSession(
+  session: ReductionSession
+): { readonly session: ReductionSession; readonly event: ReductionEvent } {
+  if (session.isComplete || session.stage === 'done') {
+    const contigs = sortCanonical(session.pool)
+    return {
+      session: {
+        ...session,
+        pool: contigs,
+        isComplete: true,
+        stage: 'done'
+      },
+      event: {
+        kind: 'assembly-completed',
+        pool: contigs,
+        contigs
+      }
+    }
+  }
+
+  const stage = session.stage ?? 'init'
+
+  if (stage === 'init') {
+    const { kept, removed } = filterContainedFragments(session.pool)
+    return {
+      session: {
+        ...session,
+        pool: kept,
+        stage: 'select'
+      },
+      event: {
+        kind: 'initial-filtered',
+        pool: kept,
+        removed
+      }
+    }
+  }
+
+  if (stage === 'select') {
+    if (session.pool.length <= 1) {
+      const contigs = sortCanonical(session.pool)
+      return {
+        session: {
+          ...session,
+          pool: contigs,
+          isComplete: true,
+          stage: 'done'
+        },
+        event: {
+          kind: 'assembly-completed',
+          pool: contigs,
+          contigs
+        }
+      }
+    }
+
+    const candidate = findBestOverlap(session.pool, session.minOverlap)
+    if (!candidate) {
+      const contigs = sortCanonical(session.pool)
+      return {
+        session: {
+          ...session,
+          pool: contigs,
+          isComplete: true,
+          stage: 'done'
+        },
+        event: {
+          kind: 'assembly-completed',
+          pool: contigs,
+          contigs
+        }
+      }
+    }
+
+    return {
+      session: {
+        ...session,
+        pendingCandidate: candidate,
+        stage: 'merge'
+      },
+      event: {
+        kind: 'candidate-selected',
+        pool: session.pool,
+        candidate
+      }
+    }
+  }
+
+  if (stage === 'merge') {
+    const candidate = session.pendingCandidate!
+    const merged = mergePair(
+      candidate.prefix,
+      candidate.suffix,
+      candidate.matchLength
+    )
+    const remaining = session.pool.filter(
+      (f) => f !== candidate.prefix && f !== candidate.suffix
+    )
+    const preFilteredPool = [merged, ...remaining]
+    const { kept, removed } = filterContainedFragments(preFilteredPool)
+
+    if (removed.length > 0) {
+      return {
+        session: {
+          ...session,
+          pool: kept,
+          pendingCandidate: candidate,
+          pendingMerged: merged,
+          pendingDynamicRemoved: removed,
+          stage: 'dynamic-filter'
+        },
+        event: {
+          kind: 'pair-merged',
+          pool: preFilteredPool,
+          candidate,
+          mergedFragment: merged
+        }
+      }
+    }
+
+    return {
+      session: {
+        pool: kept,
+        minOverlap: session.minOverlap,
+        isComplete: false,
+        stage: 'select'
+      },
+      event: {
+        kind: 'pair-merged',
+        pool: preFilteredPool,
+        candidate,
+        mergedFragment: merged
+      }
+    }
+  }
+
+  return {
+    session: {
+      pool: session.pool,
+      minOverlap: session.minOverlap,
+      isComplete: false,
+      stage: 'select'
+    },
+    event: {
+      kind: 'dynamic-filtered',
+      pool: session.pool,
+      removed: session.pendingDynamicRemoved ?? [],
+      mergedFragment: session.pendingMerged ?? ''
+    }
+  }
+}
+
+/**
+ * Execute greedy overlap reduction while capturing an immutable sequence
+ * of pure domain {@link ReductionEvent} records for animation playback.
+ */
+export function traceAssembly(
+  rawFragments: readonly string[],
+  minOverlap: number
+): readonly ReductionEvent[] {
+  let session = startSession(rawFragments, minOverlap)
+  const events: ReductionEvent[] = []
+
+  while (!session.isComplete) {
+    const step = stepSession(session)
+    session = step.session
+    events.push(step.event)
+  }
+
+  return events
+}
+
+/** Final contigs plus the full animation trace. */
+export interface AssemblyResult {
+  readonly contigs: readonly string[]
+  readonly steps: readonly AssemblyStep[]
+}
+
+/**
+ * Backward-compatible Strangler Fig delegation adapter for legacy UI callers.
+ *
+ * Unfolds the pure session via {@link traceAssembly} and projects domain
+ * reduction events into legacy {@link AssemblyStep} view models.
+ */
+export function assembleWithTrace(
+  rawFragments: readonly string[],
+  minOverlap: number
+): AssemblyResult {
+  validateAssemblyInputs(rawFragments, minOverlap)
+
+  const steps: AssemblyStep[] = []
+  let stepIndex = 0
 
   steps.push({
     stepIndex: stepIndex++,
-    type: 'canonical-sort',
-    pool: sortedContigs,
-    description:
-      `Canonical sort: ${sortedContigs.length} contig(s) ordered by length, ` +
-      `then alphabetically.`
+    type: 'init',
+    pool: [...rawFragments],
+    description: `Initialised raw pool with ${rawFragments.length} fragments.`
   })
 
-  steps.push({
-    stepIndex,
-    type: 'completed',
-    pool: sortedContigs,
-    description: `Assembly complete: reconstructed ${sortedContigs.length} contig(s).`
-  })
+  const events = traceAssembly(rawFragments, minOverlap)
+  let lastCandidate: OverlapCandidate | undefined
+
+  for (const event of events) {
+    switch (event.kind) {
+      case 'initial-filtered':
+        steps.push({
+          stepIndex: stepIndex++,
+          type: 'filter-initial',
+          pool: [...event.pool],
+          removedFragments: event.removed,
+          description:
+            event.removed.length > 0
+              ? `Filtered ${event.removed.length} redundant fragments ` +
+                `(duplicates/substrings). Active pool: ${event.pool.length}.`
+              : `All ${event.pool.length} fragments are unique and uncontained.`
+        })
+        break
+
+      case 'candidate-selected':
+        lastCandidate = event.candidate
+        steps.push({
+          stepIndex: stepIndex++,
+          type: 'find-overlap',
+          pool: [...event.pool],
+          candidate: event.candidate,
+          description:
+            `Found best overlap of length ${event.candidate.matchLength} ` +
+            `between prefix "${event.candidate.prefix}" and suffix ` +
+            `"${event.candidate.suffix}".`
+        })
+        break
+
+      case 'pair-merged':
+        steps.push({
+          stepIndex: stepIndex++,
+          type: 'merge-pair',
+          pool: [...event.pool],
+          candidate: event.candidate,
+          mergedFragment: event.mergedFragment,
+          description:
+            `Merged "${event.candidate.prefix}" and ` +
+            `"${event.candidate.suffix}" into "${event.mergedFragment}".`
+        })
+        break
+
+      case 'dynamic-filtered': {
+        const step = {
+          stepIndex: stepIndex++,
+          type: 'filter-dynamic' as const,
+          pool: [...event.pool],
+          removedFragments: event.removed,
+          mergedFragment: event.mergedFragment,
+          description:
+            `Dynamic containment: eliminated ` +
+            `${event.removed.map(describeRemoved).join(', ')} ` +
+            `engulfed by new sequence.`
+        }
+        if (lastCandidate !== undefined) {
+          steps.push({ ...step, candidate: lastCandidate })
+        } else {
+          steps.push(step)
+        }
+        break
+      }
+
+      case 'assembly-completed':
+        steps.push({
+          stepIndex: stepIndex++,
+          type: 'canonical-sort',
+          pool: event.contigs,
+          description:
+            `Canonical sort: ${event.contigs.length} contig(s) ordered ` +
+            `by length, then alphabetically.`
+        })
+        steps.push({
+          stepIndex,
+          type: 'completed',
+          pool: event.contigs,
+          description:
+            `Assembly complete: reconstructed ${event.contigs.length} ` +
+            `contig(s).`
+        })
+        break
+    }
+  }
+
+  const finalContigs =
+    events.find((e) => e.kind === 'assembly-completed')?.contigs ?? []
 
   return {
-    contigs: sortedContigs,
+    contigs: finalContigs,
     steps
   }
 }
