@@ -103,7 +103,8 @@ environment variable).
 
 The application supports URL query parameters for deep linking:
 
-- `?preset=<index>`: Load a specific preset configuration on startup (0-indexed).
+- `?preset=<index>`: Load a specific preset configuration on startup
+  (0-indexed).
 - `?step=<index>`: Jump to a specific animation step.
 
 ## Assembly Mechanics
@@ -123,14 +124,42 @@ assembly step:
 - Maximum source length: 10,000 characters.
 - Maximum fragment count: 500 fragments.
 
-### Haskell Parity
+### Deterministic Overlap Ordering
 
-This implementation ensures deterministic parity with the Haskell reference
-implementation of `reconstruct-strings`, relying on strict tie-breaking rules:
+This implementation ensures deterministic reduction by relying on strict
+three-tier tie-breaking rules:
 
-1. **Longest Overlap Match:** Prefers candidates with the highest `matchLength`.
-2. **Code Unit Order (Prefix):** Tie-breaks on the prefix fragment lexicographically using code unit order.
-3. **Code Unit Order (Suffix):** Tie-breaks on the suffix fragment lexicographically using code unit order.
+1. **Longest Overlap Match:** Prefers candidates with the highest `matchLength`
+   (descending).
+2. **Code Unit Order (Prefix):** Tie-breaks on the prefix fragment
+   lexicographically using UTF-16 code unit order (ascending).
+3. **Code Unit Order (Suffix):** Tie-breaks on the suffix fragment
+   lexicographically using UTF-16 code unit order (ascending).
+
+## Documentation
+
+Detailed domain documentation and architectural specifications are located in
+the [`docs/`](docs/README.md) directory:
+
+- [Documentation Index][docs-index]: Comprehensive navigation guide for all
+  project documentation.
+- [Domain Glossary][docs-glossary]: Definitions for domain concepts
+  including fragments, contigs, overlaps, coverage, and chimeric joins.
+- [Interactive OLC Assembler Specification (REQ-001)][req-001]:
+  Functional requirements, generation parameters, state machine transitions,
+  and standalone delivery model.
+- [Assembly Dynamics and Parameter Heuristics][docs-heuristics]:
+  Mathematical collision models, overlap lower and upper bounds,
+  Lander–Waterman coverage depth, and calibrated parameter configurations.
+- [Reconstructing DNA from Short Fragments][dna-doc]:
+  Biological background on *de novo* genome assembly, contrasting OLC and
+  de Bruijn graph paradigms.
+
+[dna-doc]: docs/reconstructing-complete-dna-strand-from-short-fragments.md
+[docs-glossary]: docs/GLOSSARY.md
+[docs-heuristics]: docs/heuristics.md
+[docs-index]: docs/README.md
+[req-001]: docs/REQ-001-interactive-olc-assembler-animation.md
 
 ## Development Pipeline
 
@@ -156,14 +185,17 @@ Available development targets:
   - `alignment.ts`: Real-time contig alignment verification.
   - `assembler.ts`: The core OLC iterative reduction assembler.
   - `generator.ts`: Fragment sampling logic and parameter validation.
+  - `input.ts`: Input parsing and validation utilities.
   - `main.ts`: Application controller wiring UI to domain logic.
   - `presets.ts`: Built-in sequence presets.
   - `types.ts`: Core domain interfaces.
   - `ui/`: Pure HTML template renderers for DOM views.
 - `static/index.html`: Base HTML template.
+- `docs/`: Technical specifications, parameter heuristics, and domain guides.
 - `dist/`: Generated standalone distribution bundle.
 - `test/`: Automated test suite (assembler, generator, alignment, views).
 - `build.mjs`: Standalone esbuild script.
+- `serve.mjs`: Local development HTTP server.
 - `.github/workflows/pages.yml`: Automated deployment to GitHub Pages.
 
 ## License

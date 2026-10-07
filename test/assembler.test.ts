@@ -8,7 +8,7 @@ import {
   sortCanonical
 } from '../src/assembler.js'
 
-describe('Assembler - Parity with Haskell Implementation', () => {
+describe('Assembler - Deterministic Greedy Reduction', () => {
   it('assembles single valid overlap (Example A)', () => {
     const input = ['ABC', 'BCD', 'CDE']
     const { contigs } = assembleWithTrace(input, 2)

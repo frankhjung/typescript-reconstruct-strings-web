@@ -5,10 +5,10 @@ import type {
 } from './types.js'
 
 /**
- * Compare two strings in code unit order.
+ * Compare two strings in UTF-16 code unit order.
  *
- * This is locale independent, matching the byte-wise ordering of the Haskell
- * reference implementation for BMP text (unlike `String.localeCompare`).
+ * This is locale independent, ensuring deterministic code point comparisons
+ * across environments (unlike `String.localeCompare`).
  */
 export function compareStrings(a: string, b: string): number {
   if (a < b) {
