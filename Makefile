@@ -26,6 +26,12 @@ install: package.json ## Install npm dependencies
 	@echo install ...
 	@npm install
 
+.PHONY: upgrade
+upgrade: ## Upgrade npm dependencies to the latest versions
+	@echo upgrade ...
+	@npx npm-check-updates --upgrade
+	@npm install
+
 .PHONY: check
 check: typecheck lint ## Run static checks
 

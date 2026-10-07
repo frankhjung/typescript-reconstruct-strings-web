@@ -71,6 +71,18 @@ make install
 npm install
 ```
 
+### Upgrading Packages
+
+To update the project dependencies to their newest versions allowed by the
+current semver ranges in `package.json`, use:
+
+```bash
+make upgrade
+```
+
+This runs `npm-check-updates` to refresh the dependency versions in
+`package.json` and then reinstalls the updated packages with `npm install`.
+
 ### Build & Run
 
 Build the self-contained HTML bundle:
@@ -173,6 +185,7 @@ Available development targets:
 
 - **`make all`:** Runs `install`, `check`, `build`, and `test` sequentially.
 - **`make check`:** Alias for running static type checks and linting.
+- **`make upgrade`:** Refreshes dependency versions in `package.json` and reinstalls them.
 - **`make typecheck`:** Validates TypeScript types without emitting output.
 - **`make test`:** Executes the full unit and view test suite.
 - **`make build`:** Generates the standalone HTML bundle using esbuild.
