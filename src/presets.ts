@@ -1,4 +1,4 @@
-import { Preset } from './types.js';
+import { Preset } from './types.js'
 
 export const PRESETS: readonly Preset[] = [
   {
@@ -37,8 +37,8 @@ export const PRESETS: readonly Preset[] = [
     }
   },
   {
-    name: 'REQ-001 Reference (Example A)',
-    description: 'Exact test case from specification (ABC, BCD, CDE)',
+    name: 'Simple Test (Example)',
+    description: 'Simple test case (ABC, BCD, CDE)',
     params: {
       source: 'ABCDE',
       n: 2,
@@ -48,4 +48,4 @@ export const PRESETS: readonly Preset[] = [
     },
     defaultFragments: ['ABC', 'BCD', 'CDE']
   }
-];
+]

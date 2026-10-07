@@ -1,4 +1,4 @@
-import { AssemblyStep, OverlapCandidate } from './types.js';
+import { AssemblyStep, OverlapCandidate } from './types.js'
 
 /**
  * Calculate the longest suffix-prefix overlap between two distinct fragments.
@@ -10,25 +10,25 @@ export function calculateOverlap(
   suffix: string,
   minOverlap: number
 ): number {
-  const maxPossible = Math.min(prefix.length, suffix.length);
-  const maxLen = Math.max(prefix.length, suffix.length);
+  const maxPossible = Math.min(prefix.length, suffix.length)
+  const maxLen = Math.max(prefix.length, suffix.length)
 
   for (let len = maxPossible; len >= minOverlap; len--) {
     if (len >= maxLen) {
-      continue;
+      continue
     }
-    const endOfPrefix = prefix.slice(prefix.length - len);
-    const startOfSuffix = suffix.slice(0, len);
+    const endOfPrefix = prefix.slice(prefix.length - len)
+    const startOfSuffix = suffix.slice(0, len)
     if (endOfPrefix === startOfSuffix) {
-      return len;
+      return len
     }
   }
 
-  return 0;
+  return 0
 }
 
 /**
- * Compare candidates using REQ-001 strict three-tier deterministic total order:
+ * Compare candidates using strict three-tier deterministic total order:
  * 1. Longest overlap match length (descending)
  * 2. Lexicographically smaller prefix fragment (ascending)
  * 3. Lexicographically smaller suffix fragment (ascending)
@@ -38,12 +38,12 @@ export function compareCandidates(
   b: OverlapCandidate
 ): number {
   if (a.matchLength !== b.matchLength) {
-    return b.matchLength - a.matchLength;
+    return b.matchLength - a.matchLength
   }
   if (a.prefix !== b.prefix) {
-    return a.prefix.localeCompare(b.prefix);
+    return a.prefix.localeCompare(b.prefix)
   }
-  return a.suffix.localeCompare(b.suffix);
+  return a.suffix.localeCompare(b.suffix)
 }
 
 /**
@@ -53,31 +53,31 @@ export function findBestOverlap(
   pool: readonly string[],
   minOverlap: number
 ): OverlapCandidate | null {
-  const candidates: OverlapCandidate[] = [];
+  const candidates: OverlapCandidate[] = []
 
   for (let i = 0; i < pool.length; i++) {
     for (let j = 0; j < pool.length; j++) {
       if (i === j) {
-        continue;
+        continue
       }
-      const prefix = pool[i];
-      const suffix = pool[j];
+      const prefix = pool[i]
+      const suffix = pool[j]
       if (prefix === suffix) {
-        continue;
+        continue
       }
-      const matchLength = calculateOverlap(prefix, suffix, minOverlap);
+      const matchLength = calculateOverlap(prefix, suffix, minOverlap)
       if (matchLength >= minOverlap) {
-        candidates.push({ prefix, suffix, matchLength });
+        candidates.push({ prefix, suffix, matchLength })
       }
     }
   }
 
   if (candidates.length === 0) {
-    return null;
+    return null
   }
 
-  candidates.sort(compareCandidates);
-  return candidates[0];
+  candidates.sort(compareCandidates)
+  return candidates[0]
 }
 
 /**
@@ -88,14 +88,14 @@ export function mergePair(
   suffix: string,
   overlapLen: number
 ): string {
-  return prefix + suffix.slice(overlapLen);
+  return prefix + suffix.slice(overlapLen)
 }
 
 /**
  * Check if s1 is a proper substring of s2.
  */
 export function isProperSubstringOf(s1: string, s2: string): boolean {
-  return s1 !== s2 && s2.includes(s1);
+  return s1 !== s2 && s2.includes(s1)
 }
 
 /**
@@ -106,33 +106,33 @@ export function filterContainedFragments(
   fragments: readonly string[]
 ): { readonly kept: string[]; readonly removed: string[] } {
   // Preserve order of first appearance for duplicates
-  const uniqueFragments = Array.from(new Set(fragments));
-  const removed: string[] = [];
-  const kept: string[] = [];
+  const uniqueFragments = Array.from(new Set(fragments))
+  const removed: string[] = []
+  const kept: string[] = []
 
   for (const f of uniqueFragments) {
     const isContained = uniqueFragments.some(
       other => isProperSubstringOf(f, other)
-    );
+    )
     if (isContained) {
-      removed.push(f);
+      removed.push(f)
     } else {
-      kept.push(f);
+      kept.push(f)
     }
   }
 
   // Also track exact duplicate instances that were dropped
-  const duplicateCounts = new Map<string, number>();
+  const duplicateCounts = new Map<string, number>()
   for (const f of fragments) {
-    duplicateCounts.set(f, (duplicateCounts.get(f) ?? 0) + 1);
+    duplicateCounts.set(f, (duplicateCounts.get(f) ?? 0) + 1)
   }
   for (const [f, count] of duplicateCounts.entries()) {
     if (count > 1 && !removed.includes(f)) {
-      removed.push(`${f} (${count - 1} duplicate copy)`);
+      removed.push(`${f} (${count - 1} duplicate copy)`)
     }
   }
 
-  return { kept, removed };
+  return { kept, removed }
 }
 
 /**
@@ -143,15 +143,15 @@ export function filterContainedFragments(
 export function sortCanonical(contigs: readonly string[]): string[] {
   return [...contigs].sort((a, b) => {
     if (b.length !== a.length) {
-      return b.length - a.length;
+      return b.length - a.length
     }
-    return a.localeCompare(b);
-  });
+    return a.localeCompare(b)
+  })
 }
 
 export interface AssemblyResult {
-  readonly contigs: readonly string[];
-  readonly steps: readonly AssemblyStep[];
+  readonly contigs: readonly string[]
+  readonly steps: readonly AssemblyStep[]
 }
 
 /**
@@ -165,14 +165,14 @@ export function assembleWithTrace(
   if (minOverlap < 1) {
     throw new Error(
       `Invalid minimum overlap: must be >= 1 (got ${minOverlap})`
-    );
+    )
   }
   if (rawFragments.some(f => f.length === 0)) {
-    throw new Error('Empty fragment encountered in input.');
+    throw new Error('Empty fragment encountered in input.')
   }
 
-  const steps: AssemblyStep[] = [];
-  let stepIndex = 0;
+  const steps: AssemblyStep[] = []
+  let stepIndex = 0
 
   // Step 0: Initial Raw Pool
   steps.push({
@@ -180,11 +180,11 @@ export function assembleWithTrace(
     type: 'init',
     pool: [...rawFragments],
     description: `Initialised raw pool with ${rawFragments.length} fragments.`
-  });
+  })
 
   // Step 1: Pre-processing deduplication & containment filtering
   const { kept: initialPool, removed: initialRemoved } =
-    filterContainedFragments(rawFragments);
+    filterContainedFragments(rawFragments)
 
   steps.push({
     stepIndex: stepIndex++,
@@ -194,17 +194,17 @@ export function assembleWithTrace(
     description:
       initialRemoved.length > 0
         ? `Filtered ${initialRemoved.length} redundant fragments ` +
-          `(duplicates/substrings). Active pool: ${initialPool.length}.`
+        `(duplicates/substrings). Active pool: ${initialPool.length}.`
         : `All ${initialPool.length} fragments are unique and uncontained.`
-  });
+  })
 
   // Iterative reduction loop
-  let pool = [...initialPool];
+  let pool = [...initialPool]
 
   while (pool.length > 1) {
-    const candidate = findBestOverlap(pool, minOverlap);
+    const candidate = findBestOverlap(pool, minOverlap)
     if (!candidate) {
-      break;
+      break
     }
 
     // Step: Selected best overlap pair
@@ -216,18 +216,18 @@ export function assembleWithTrace(
       description:
         `Found best overlap of length ${candidate.matchLength} between ` +
         `prefix "${candidate.prefix}" and suffix "${candidate.suffix}".`
-    });
+    })
 
     // Step: Merge pair
     const merged = mergePair(
       candidate.prefix,
       candidate.suffix,
       candidate.matchLength
-    );
+    )
     const remaining = pool.filter(
       f => f !== candidate.prefix && f !== candidate.suffix
-    );
-    const preFilteredPool = [merged, ...remaining];
+    )
+    const preFilteredPool = [merged, ...remaining]
 
     steps.push({
       stepIndex: stepIndex++,
@@ -238,11 +238,11 @@ export function assembleWithTrace(
       description:
         `Merged "${candidate.prefix}" and "${candidate.suffix}" into ` +
         `"${merged}".`
-    });
+    })
 
     // Step: Dynamic containment filtering
     const { kept: updatedPool, removed: dynamicRemoved } =
-      filterContainedFragments(preFilteredPool);
+      filterContainedFragments(preFilteredPool)
 
     if (dynamicRemoved.length > 0) {
       steps.push({
@@ -254,14 +254,14 @@ export function assembleWithTrace(
         description:
           `Dynamic containment: eliminated ${dynamicRemoved.join(', ')} ` +
           `engulfed by new sequence.`
-      });
+      })
     }
 
-    pool = updatedPool;
+    pool = updatedPool
   }
 
   // Final Step: Canonical sort
-  const sortedContigs = sortCanonical(pool);
+  const sortedContigs = sortCanonical(pool)
 
   steps.push({
     stepIndex: stepIndex++,
@@ -270,7 +270,7 @@ export function assembleWithTrace(
     description:
       `Canonical sort: ${sortedContigs.length} contig(s) ordered by length, ` +
       `then alphabetically.`
-  });
+  })
 
   steps.push({
     stepIndex: stepIndex++,
@@ -278,10 +278,10 @@ export function assembleWithTrace(
     pool: sortedContigs,
     description:
       `Assembly complete: reconstructed ${sortedContigs.length} contig(s).`
-  });
+  })
 
   return {
     contigs: sortedContigs,
     steps
-  };
+  }
 }
