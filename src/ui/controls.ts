@@ -121,16 +121,19 @@ function renderTemplate(presets: readonly Preset[]): string {
           <input id="param-n" type="number" min="2" />
         </div>
         <div class="form-group">
+          <label for="param-m">Fragment Count (m)</label>
+          <input id="param-m" type="number" min="2" />
+        </div>
+      </div>
+
+      <div class="grid-params">
+        <div class="form-group">
           <label for="param-a">Min Length (a)</label>
           <input id="param-a" type="number" min="2" />
         </div>
         <div class="form-group">
           <label for="param-b">Max Length (b)</label>
           <input id="param-b" type="number" min="2" />
-        </div>
-        <div class="form-group">
-          <label for="param-m">Fragment Count (m)</label>
-          <input id="param-m" type="number" min="2" />
         </div>
       </div>
 
