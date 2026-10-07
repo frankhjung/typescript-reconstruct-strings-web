@@ -3,25 +3,23 @@ import { assembleWithTrace } from './assembler.js'
 import { generateFragments } from './generator.js'
 import { PRESETS } from './presets.js'
 import {
-  AlignmentReport,
   AssemblyStep,
   GeneratorParams,
   Preset
 } from './types.js'
 import { ControlsComponent } from './ui/controls.js'
-import { renderDiffView } from './ui/diffView.js'
-import { renderMergeTheatre } from './ui/mergeView.js'
-import { renderPool } from './ui/poolView.js'
+import { renderDiffViewHtml } from './ui/diffView.js'
+import { renderMergeTheatreHtml } from './ui/mergeView.js'
+import { renderPoolHtml } from './ui/poolView.js'
 
 class App {
-  private currentSource = 'ATGGCGTGCA';
-  private steps: readonly AssemblyStep[] = [];
-  private currentStepIndex = 0;
-  private alignmentReport: AlignmentReport | null = null;
+  private currentSource = 'ATGGCGTGCA'
+  private steps: readonly AssemblyStep[] = []
+  private currentStepIndex = 0
 
-  private isPlaying = false;
-  private playbackTimer: number | null = null;
-  private stepDelayMs = 1000;
+  private isPlaying = false
+  private playbackTimer: number | null = null
+  private stepDelayMs = 1000
 
   private controls!: ControlsComponent
   private poolContainer!: HTMLElement
@@ -65,20 +63,6 @@ class App {
           </div>
 
           <div class="layout-rhs">
-            <section class="panel">
-              <div class="panel-title">
-                <span>Source Sequence (Ground Truth)</span>
-              </div>
-              <div class="form-group full-width">
-                <input
-                  id="param-source"
-                  type="text"
-                  value="ATGGCGTGCA"
-                  spellcheck="false"
-                />
-              </div>
-            </section>
-
             <section class="panel fixed-panel">
               <div class="panel-title">
                 <span>Fragment Pool Workspace</span>
@@ -177,26 +161,27 @@ class App {
   private runAssembly(fragments: string[], minOverlap: number): void {
     const result = assembleWithTrace(fragments, minOverlap)
     this.steps = result.steps
-    this.alignmentReport = alignContigsToSource(
-      this.currentSource,
-      result.contigs
-    )
     this.currentStepIndex = 0
     this.renderCurrentState()
   }
 
   private renderCurrentState(): void {
     if (this.steps.length === 0) {
-      renderPool(this.poolContainer, null)
-      renderMergeTheatre(this.theatreContainer, null)
-      renderDiffView(this.diffContainer, null)
+      this.poolContainer.innerHTML = renderPoolHtml(null)
+      this.theatreContainer.innerHTML = renderMergeTheatreHtml(null)
+      this.diffContainer.innerHTML = renderDiffViewHtml(null)
       return
     }
 
     const currentStep = this.steps[this.currentStepIndex]
-    renderPool(this.poolContainer, currentStep)
-    renderMergeTheatre(this.theatreContainer, currentStep)
-    renderDiffView(this.diffContainer, this.alignmentReport)
+    const stepReport = alignContigsToSource(
+      this.currentSource,
+      currentStep.pool
+    )
+
+    this.poolContainer.innerHTML = renderPoolHtml(currentStep)
+    this.theatreContainer.innerHTML = renderMergeTheatreHtml(currentStep)
+    this.diffContainer.innerHTML = renderDiffViewHtml(stepReport)
 
     this.controls.updateProgress(
       this.currentStepIndex,

@@ -34,8 +34,6 @@ export class ControlsComponent {
   private customEditorSection!: HTMLElement
   private customTextarea!: HTMLTextAreaElement
 
-  private isPlaying = false;
-
   constructor(
     container: HTMLElement,
     presets: readonly Preset[],
@@ -50,6 +48,16 @@ export class ControlsComponent {
     this.container.innerHTML = `
       <div class="panel-title">
         <span>Controls</span>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 0.5rem;">
+        <label for="param-source">Source Sequence (Ground Truth)</label>
+        <input
+          id="param-source"
+          type="text"
+          value="ATGGCGTGCA"
+          spellcheck="false"
+        />
       </div>
 
       <div class="form-group" style="margin-bottom: 1rem;">
@@ -154,8 +162,8 @@ export class ControlsComponent {
       </div>
     `
 
-    this.inputSource = document.getElementById(
-      'param-source'
+    this.inputSource = this.container.querySelector(
+      '#param-source'
     ) as HTMLInputElement
     this.inputN = this.container.querySelector(
       '#param-n'
@@ -300,7 +308,6 @@ export class ControlsComponent {
   }
 
   public setPlaying(playing: boolean): void {
-    this.isPlaying = playing
     this.btnPlayPause.textContent = playing ? 'Pause ⏸' : 'Play ▶'
   }
 

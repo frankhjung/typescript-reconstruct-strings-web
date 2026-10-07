@@ -1,77 +1,53 @@
-import { AssemblyStep } from '../types.js';
+import { AssemblyStep } from '../types.js'
 
 /**
- * Render the fragment pool cards in the workspace grid.
+ * Pure template renderer for the fragment pool workspace.
+ */
+export function renderPoolHtml(step: AssemblyStep | null): string {
+  if (!step) {
+    return ''
+  }
+
+  const pool = step.pool
+  const candidate = step.candidate
+  const mergedFragment = step.mergedFragment
+  const removed = step.removedFragments ?? []
+
+  const activeCards = pool.map(fragment => {
+    const isPrefix = candidate?.prefix === fragment
+    const isSuffix = candidate?.suffix === fragment
+    const isNewMerged = mergedFragment === fragment
+
+    let activeClass = ''
+    let badgeHtml = ''
+
+    if (isPrefix) {
+      activeClass = ' active-prefix'
+      badgeHtml = '<span class="badge prefix">Prefix</span>'
+    } else if (isSuffix) {
+      activeClass = ' active-suffix'
+      badgeHtml = '<span class="badge suffix">Suffix</span>'
+    } else if (isNewMerged) {
+      activeClass = ' merged-new'
+      badgeHtml = '<span class="badge merged">Merged</span>'
+    }
+
+    return `<div class="fragment-card${activeClass}"><span>${fragment}</span>${badgeHtml}</div>`
+  }).join('')
+
+  const removedCards = removed.map(rem =>
+    `<div class="fragment-card removed"><span>${rem}</span><span class="badge removed">Contained</span></div>`
+  ).join('')
+
+  return activeCards + removedCards
+}
+
+/**
+ * Render the fragment pool cards in the workspace grid (backward-compatible adapter).
  */
 export function renderPool(
   container: HTMLElement,
   step: AssemblyStep | null
 ): void {
-  container.innerHTML = '';
-  if (!step) {
-    return;
-  }
-
-  const pool = step.pool;
-  const candidate = step.candidate;
-  const mergedFragment = step.mergedFragment;
-  const removed = step.removedFragments ?? [];
-
-  // Render active pool fragments
-  for (const fragment of pool) {
-    const card = document.createElement('div');
-    card.className = 'fragment-card';
-
-    const isPrefix = candidate?.prefix === fragment;
-    const isSuffix = candidate?.suffix === fragment;
-    const isNewMerged = mergedFragment === fragment;
-
-    if (isPrefix) {
-      card.classList.add('active-prefix');
-    } else if (isSuffix) {
-      card.classList.add('active-suffix');
-    } else if (isNewMerged) {
-      card.classList.add('merged-new');
-    }
-
-    const textSpan = document.createElement('span');
-    textSpan.textContent = fragment;
-    card.appendChild(textSpan);
-
-    if (isPrefix) {
-      const badge = document.createElement('span');
-      badge.className = 'badge prefix';
-      badge.textContent = 'Prefix';
-      card.appendChild(badge);
-    } else if (isSuffix) {
-      const badge = document.createElement('span');
-      badge.className = 'badge suffix';
-      badge.textContent = 'Suffix';
-      card.appendChild(badge);
-    } else if (isNewMerged) {
-      const badge = document.createElement('span');
-      badge.className = 'badge merged';
-      badge.textContent = 'Merged';
-      card.appendChild(badge);
-    }
-
-    container.appendChild(card);
-  }
-
-  // Render any fragments that were eliminated in this step
-  for (const rem of removed) {
-    const card = document.createElement('div');
-    card.className = 'fragment-card removed';
-
-    const textSpan = document.createElement('span');
-    textSpan.textContent = rem;
-    card.appendChild(textSpan);
-
-    const badge = document.createElement('span');
-    badge.className = 'badge removed';
-    badge.textContent = 'Contained';
-    card.appendChild(badge);
-
-    container.appendChild(card);
-  }
+  container.innerHTML = renderPoolHtml(step)
 }

@@ -2,7 +2,19 @@
 
 This project provides an interactive web-based animation for the
 Overlap-Layout-Consensus (OLC) sequence assembler. It visually demonstrates how
-string fragments are assembled into contiguous sequences (contigs).
+string fragments assemble into contiguous sequences (contigs) and dynamically
+verifies reconstruction against a reference sequence.
+
+## Features
+
+- **Stepwise OLC Animation:** Step through pairwise suffix-prefix overlaps,
+  merges, and dynamic containment filtering.
+- **Dynamic Reference Verification:** Real-time alignment against ground-truth
+  sequences with coverage percentage and chimera detection.
+- **Configurable Generator & Presets:** Built-in biological sequence presets
+  with custom fragment pool inputs.
+- **Zero Runtime Dependencies:** Compiles into a self-contained, single-file
+  HTML bundle using vanilla TypeScript and CSS.
 
 ## Quick Start
 
@@ -21,20 +33,39 @@ make install
 npm install
 ```
 
-### Development Scripts
+### Build & Run
 
-The project includes several scripts to facilitate development. You can run
-these using `make` or the traditional `npm` commands:
+Build the self-contained HTML bundle:
 
-- **Build**: Compiles the TypeScript source into a web-ready bundle.
+```bash
+make build
+```
 
-  ```bash
-  make build
-  # or
-  npm run build
-  ```
+Open the generated application in your web browser:
 
-- **Typecheck**: Validates TypeScript types without emitting compiled output.
+```bash
+xdg-open dist/index.html
+# or
+open dist/index.html
+```
+
+Alternatively, serve the `dist/` directory with any local HTTP server:
+
+```bash
+python3 -m http.server 8080 --directory dist
+```
+
+### Development Pipeline
+
+Run the default pipeline (static checks, build bundle, and test suite):
+
+```bash
+make
+```
+
+Individual development targets:
+
+- **Typecheck:** Validates TypeScript types without emitting output.
 
   ```bash
   make typecheck
@@ -42,7 +73,7 @@ these using `make` or the traditional `npm` commands:
   npm run typecheck
   ```
 
-- **Test**: Runs the test suite.
+- **Test:** Executes the full unit and view test suite.
 
   ```bash
   make test
@@ -50,23 +81,23 @@ these using `make` or the traditional `npm` commands:
   npm run test
   ```
 
-- **Clean**: Removes the compiled output.
+- **Clean:** Removes compiled distribution artefacts.
 
   ```bash
   make clean
   ```
 
-You can also run the default pipeline (checks, builds, and tests) by simply
-running `make`. Run `make help` to see all available targets.
+Run `make help` to inspect all available targets.
 
 ### Directory Structure
 
-- `src/`: TypeScript source code and modules.
-- `static/`: Static assets (HTML, CSS, images).
-- `test/`: Unit and integration tests.
-- `build.mjs`: Build script utilizing `esbuild`.
+- `src/`: TypeScript source code and view templates.
+- `src/ui/`: Pure declarative view templates and controls.
+- `static/`: HTML template wrapper.
+- `test/`: Automated test suite (assembler, generator, alignment, views).
+- `build.mjs`: Standalone inlining build script utilising `esbuild`.
 
 ## License
 
-This project is licensed under the BSD-3-Clause license. See the `LICENSE` file
+This project is licensed under the BSD-3-Clause licence. See the `LICENSE` file
 for details.
