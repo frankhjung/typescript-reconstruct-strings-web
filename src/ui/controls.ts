@@ -12,6 +12,17 @@ export interface ControlsCallbacks {
   onReset: () => void
 }
 
+function requireElement<T extends HTMLElement>(
+  parent: ParentNode,
+  selector: string
+): T {
+  const el = parent.querySelector<T>(selector)
+  if (!el) {
+    throw new Error(`Required DOM element "${selector}" not found`)
+  }
+  return el
+}
+
 export class ControlsComponent {
   private readonly container: HTMLElement
   private readonly callbacks: ControlsCallbacks
@@ -109,7 +120,7 @@ export class ControlsComponent {
         <textarea
           id="custom-fragments"
           rows="3"
-          placeholder="ABC\nBCD\nCDE"
+          placeholder="ABC\\nBCD\\nCDE"
         ></textarea>
         <div class="btn-row" style="margin-top: 0.5rem;">
           <button id="btn-apply-custom" class="accent">
@@ -162,53 +173,23 @@ export class ControlsComponent {
       </div>
     `
 
-    this.inputSource = this.container.querySelector(
-      '#param-source'
-    ) as HTMLInputElement
-    this.inputN = this.container.querySelector(
-      '#param-n'
-    ) as HTMLInputElement
-    this.inputA = this.container.querySelector(
-      '#param-a'
-    ) as HTMLInputElement
-    this.inputB = this.container.querySelector(
-      '#param-b'
-    ) as HTMLInputElement
-    this.inputM = this.container.querySelector(
-      '#param-m'
-    ) as HTMLInputElement
-    this.selectPreset = this.container.querySelector(
-      '#preset-select'
-    ) as HTMLSelectElement
+    this.inputSource = requireElement(this.container, '#param-source')
+    this.inputN = requireElement(this.container, '#param-n')
+    this.inputA = requireElement(this.container, '#param-a')
+    this.inputB = requireElement(this.container, '#param-b')
+    this.inputM = requireElement(this.container, '#param-m')
+    this.selectPreset = requireElement(this.container, '#preset-select')
 
-    this.btnPlayPause = this.container.querySelector(
-      '#btn-play-pause'
-    ) as HTMLButtonElement
-    this.btnStepNext = this.container.querySelector(
-      '#btn-step-next'
-    ) as HTMLButtonElement
-    this.btnStepPrev = this.container.querySelector(
-      '#btn-step-prev'
-    ) as HTMLButtonElement
-    this.btnReset = this.container.querySelector(
-      '#btn-reset'
-    ) as HTMLButtonElement
-    this.scrubber = this.container.querySelector(
-      '#scrubber'
-    ) as HTMLInputElement
-    this.stepLabel = this.container.querySelector(
-      '#step-label'
-    ) as HTMLSpanElement
-    this.explanationEl = this.container.querySelector(
-      '#status-explanation'
-    ) as HTMLElement
+    this.btnPlayPause = requireElement(this.container, '#btn-play-pause')
+    this.btnStepNext = requireElement(this.container, '#btn-step-next')
+    this.btnStepPrev = requireElement(this.container, '#btn-step-prev')
+    this.btnReset = requireElement(this.container, '#btn-reset')
+    this.scrubber = requireElement(this.container, '#scrubber')
+    this.stepLabel = requireElement(this.container, '#step-label')
+    this.explanationEl = requireElement(this.container, '#status-explanation')
 
-    this.customEditorSection = this.container.querySelector(
-      '#custom-editor'
-    ) as HTMLElement
-    this.customTextarea = this.container.querySelector(
-      '#custom-fragments'
-    ) as HTMLTextAreaElement
+    this.customEditorSection = requireElement(this.container, '#custom-editor')
+    this.customTextarea = requireElement(this.container, '#custom-fragments')
 
     this.setupListeners(presets)
   }
@@ -223,28 +204,31 @@ export class ControlsComponent {
       }
     })
 
-    const btnGenerate = this.container.querySelector(
+    const btnGenerate = requireElement<HTMLButtonElement>(
+      this.container,
       '#btn-generate'
-    ) as HTMLButtonElement
+    )
     btnGenerate.addEventListener('click', () => {
       this.callbacks.onGenerate(this.getParams())
     })
 
-    const btnToggleCustom = this.container.querySelector(
+    const btnToggleCustom = requireElement<HTMLButtonElement>(
+      this.container,
       '#btn-toggle-custom'
-    ) as HTMLButtonElement
+    )
     btnToggleCustom.addEventListener('click', () => {
       const isHidden = this.customEditorSection.style.display === 'none'
       this.customEditorSection.style.display = isHidden ? 'block' : 'none'
     })
 
-    const btnApplyCustom = this.container.querySelector(
+    const btnApplyCustom = requireElement<HTMLButtonElement>(
+      this.container,
       '#btn-apply-custom'
-    ) as HTMLButtonElement
+    )
     btnApplyCustom.addEventListener('click', () => {
       const text = this.customTextarea.value.trim()
       const fragments = text
-        .split(/[\n,]+/)
+        .split(/[\\n,]+/)
         .map(s => s.trim())
         .filter(s => s.length > 0)
       const minOverlap = parseInt(this.inputN.value, 10) || 2
@@ -272,9 +256,10 @@ export class ControlsComponent {
       this.callbacks.onSeek(val)
     })
 
-    const speedSlider = this.container.querySelector(
+    const speedSlider = requireElement<HTMLInputElement>(
+      this.container,
       '#speed-slider'
-    ) as HTMLInputElement
+    )
     speedSlider.addEventListener('input', () => {
       // Invert so higher slider value = faster (lower delay)
       const maxVal = parseInt(speedSlider.max, 10)

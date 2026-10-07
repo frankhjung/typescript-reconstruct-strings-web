@@ -70,7 +70,7 @@ export function alignContigsToSource(
     const exactOccurrences = findAllOccurrences(source, contig);
     if (exactOccurrences.length > 0) {
       // Pick the first occurrence that helps cover uncovered positions
-      let chosenStart = exactOccurrences[0];
+      let chosenStart = exactOccurrences[0] ?? 0
       for (const occ of exactOccurrences) {
         let coversNew = false;
         for (let i = occ; i < occ + contig.length; i++) {

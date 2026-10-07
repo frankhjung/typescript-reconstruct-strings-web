@@ -9,9 +9,9 @@ export function renderPoolHtml(step: AssemblyStep | null): string {
   }
 
   const pool = step.pool
-  const candidate = step.candidate
-  const mergedFragment = step.mergedFragment
-  const removed = step.removedFragments ?? []
+  const candidate = 'candidate' in step ? step.candidate : undefined
+  const mergedFragment = 'mergedFragment' in step ? step.mergedFragment : undefined
+  const removed = 'removedFragments' in step ? (step.removedFragments ?? []) : []
 
   const activeCards = pool.map(fragment => {
     const isPrefix = candidate?.prefix === fragment

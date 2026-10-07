@@ -62,7 +62,7 @@ export function findBestOverlap(
       }
       const prefix = pool[i]
       const suffix = pool[j]
-      if (prefix === suffix) {
+      if (!prefix || !suffix || prefix === suffix) {
         continue
       }
       const matchLength = calculateOverlap(prefix, suffix, minOverlap)
@@ -77,7 +77,7 @@ export function findBestOverlap(
   }
 
   candidates.sort(compareCandidates)
-  return candidates[0]
+  return candidates[0] ?? null
 }
 
 /**

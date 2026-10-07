@@ -89,15 +89,17 @@ Individual development targets:
 
 Run `make help` to inspect all available targets.
 
-### Directory Structure
+## Project Structure
 
 - `src/`: TypeScript source code and view templates.
 - `src/ui/`: Pure declarative view templates and controls.
 - `static/`: HTML template wrapper.
+- `dist/`: Generated standalone distribution bundle
+  ([index.html](dist/index.html)).
 - `test/`: Automated test suite (assembler, generator, alignment, views).
 - `build.mjs`: Standalone inlining build script utilising `esbuild`.
 
 ## License
 
-This project is licensed under the BSD-3-Clause licence. See the `LICENSE` file
-for details.
+This project is licensed under the BSD-3-Clause licence. See the
+[LICENSE](LICENSE) file for details.

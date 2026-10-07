@@ -5,7 +5,7 @@ import { AssemblyStep } from '../types.js'
  * sliding alignment and fused contig output.
  */
 export function renderMergeTheatreHtml(step: AssemblyStep | null): string {
-  if (!step || !step.candidate) {
+  if (!step || !('candidate' in step) || !step.candidate) {
     const msg = step?.type === 'completed'
       ? 'Assembly complete. See reference comparison below.'
       : 'No active merge in this step. Step forward to observe pairwise overlap.'

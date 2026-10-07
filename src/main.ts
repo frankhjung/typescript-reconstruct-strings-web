@@ -33,11 +33,10 @@ class App {
     const searchParams = new URLSearchParams(window.location.search)
     const presetParam = searchParams.get('preset')
     const pIdx = presetParam !== null ? parseInt(presetParam, 10) : 0
-    const initialPreset = !isNaN(pIdx) && PRESETS[pIdx]
-      ? PRESETS[pIdx]
-      : PRESETS[0]
-
-    this.loadPreset(initialPreset)
+    const initialPreset = !isNaN(pIdx) && PRESETS[pIdx] ? PRESETS[pIdx] : PRESETS[0]
+    if (initialPreset) {
+      this.loadPreset(initialPreset)
+    }
 
     const stepParam = searchParams.get('step')
     if (stepParam !== null) {
@@ -88,19 +87,23 @@ class App {
       </div>
     `
 
-    this.poolContainer = document.getElementById('pool-grid') as HTMLElement
-    this.theatreContainer = document.getElementById(
-      'theatre-container'
-    ) as HTMLElement
-    this.diffContainer = document.getElementById(
-      'diff-container'
-    ) as HTMLElement
+    const poolEl = document.getElementById('pool-grid')
+    const theatreEl = document.getElementById('theatre-container')
+    const diffEl = document.getElementById('diff-container')
+    if (!poolEl || !theatreEl || !diffEl) {
+      throw new Error('Required workspace DOM elements not found')
+    }
+
+    this.poolContainer = poolEl
+    this.theatreContainer = theatreEl
+    this.diffContainer = diffEl
   }
 
   private initControls(): void {
-    const controlsPanel = document.getElementById(
-      'controls-panel'
-    ) as HTMLElement
+    const controlsPanel = document.getElementById('controls-panel')
+    if (!controlsPanel) {
+      throw new Error('Controls panel element #controls-panel not found')
+    }
 
     this.controls = new ControlsComponent(controlsPanel, PRESETS, {
       onGenerate: params => this.handleGenerate(params),
@@ -174,6 +177,10 @@ class App {
     }
 
     const currentStep = this.steps[this.currentStepIndex]
+    if (!currentStep) {
+      return
+    }
+
     const stepReport = alignContigsToSource(
       this.currentSource,
       currentStep.pool
@@ -259,11 +266,17 @@ class App {
   }
 }
 
+declare global {
+  interface Window {
+    __app?: App
+  }
+}
+
 // Bootstrap application on DOM ready
 if (document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', () => {
-    (window as unknown as { __app: App }).__app = new App()
+    window.__app = new App()
   })
 } else {
-  (window as unknown as { __app: App }).__app = new App()
+  window.__app = new App()
 }
