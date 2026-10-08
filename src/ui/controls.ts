@@ -7,24 +7,8 @@ import {
   sliderToDelay
 } from '../input.js'
 import type { GeneratorParams, Preset } from '../types.js'
+import type { Action } from '../store.js'
 import { escapeHtml } from './escape.js'
-
-/** Actions the controls panel can request of its owner. */
-export interface ControlsCallbacks {
-  onGenerate: (params: GeneratorParams) => void
-  onCustomFragments: (
-    fragments: readonly string[],
-    minOverlap: number,
-    source: string
-  ) => void
-  onSelectPreset: (preset: Preset) => void
-  onPlayPause: () => void
-  onStepNext: () => void
-  onStepPrev: () => void
-  onSeek: (stepIndex: number) => void
-  onSpeedChange: (delayMs: number) => void
-  onReset: () => void
-}
 
 function requireElement<T extends HTMLElement>(
   parent: ParentNode,
@@ -196,18 +180,18 @@ function renderTemplate(presets: readonly Preset[]): string {
 /**
  * The controls panel: parameter inputs, preset selection, manual fragment
  * entry and playback controls. It owns its DOM and reports user intent
- * through {@link ControlsCallbacks}; it holds no application state.
+ * by dispatching pure Actions; it holds no application state.
  */
 export class ControlsComponent {
-  private readonly callbacks: ControlsCallbacks
+  private readonly dispatch: (action: Action) => void
   private readonly els: Elements
 
   constructor(
     container: HTMLElement,
     presets: readonly Preset[],
-    callbacks: ControlsCallbacks
+    dispatch: (action: Action) => void
   ) {
-    this.callbacks = callbacks
+    this.dispatch = dispatch
     container.innerHTML = renderTemplate(presets)
     this.els = bindElements(container)
     this.els.customTextarea.placeholder = 'ABC\nBCD\nCDE'
@@ -215,18 +199,20 @@ export class ControlsComponent {
   }
 
   private setupListeners(presets: readonly Preset[]): void {
-    const { els, callbacks } = this
+    const { els, dispatch } = this
 
     els.selectPreset.addEventListener('change', () => {
       const idx = Number.parseInt(els.selectPreset.value, 10)
       const preset = Number.isNaN(idx) ? undefined : presets[idx]
       if (preset) {
-        callbacks.onSelectPreset(preset)
+        const action: Action = { type: 'LOAD_PRESET', params: preset.params }
+        if (preset.defaultFragments) action.defaultFragments = preset.defaultFragments
+        dispatch(action)
       }
     })
 
     els.btnGenerate.addEventListener('click', () => {
-      callbacks.onGenerate(this.getParams())
+      dispatch({ type: 'GENERATE', params: this.getParams() })
     })
 
     els.btnToggleCustom.addEventListener('click', () => {
@@ -234,31 +220,33 @@ export class ControlsComponent {
     })
 
     els.btnApplyCustom.addEventListener('click', () => {
-      callbacks.onCustomFragments(
-        parseFragments(els.customTextarea.value),
-        readInt(els.inputMinOverlap),
-        els.inputSource.value.trim()
-      )
+      dispatch({
+        type: 'APPLY_CUSTOM',
+        fragments: parseFragments(els.customTextarea.value),
+        minOverlap: readInt(els.inputMinOverlap),
+        source: els.inputSource.value.trim()
+      })
     })
 
-    els.btnPlayPause.addEventListener('click', () => callbacks.onPlayPause())
-    els.btnStepNext.addEventListener('click', () => callbacks.onStepNext())
-    els.btnStepPrev.addEventListener('click', () => callbacks.onStepPrev())
-    els.btnReset.addEventListener('click', () => callbacks.onReset())
+    els.btnPlayPause.addEventListener('click', () => dispatch({ type: 'TOGGLE_PLAY' }))
+    els.btnStepNext.addEventListener('click', () => dispatch({ type: 'STEP_NEXT' }))
+    els.btnStepPrev.addEventListener('click', () => dispatch({ type: 'STEP_PREV' }))
+    els.btnReset.addEventListener('click', () => dispatch({ type: 'RESET' }))
 
     els.scrubber.addEventListener('input', () => {
-      callbacks.onSeek(Number.parseInt(els.scrubber.value, 10))
+      dispatch({ type: 'SEEK', index: Number.parseInt(els.scrubber.value, 10) })
     })
 
     els.speedSlider.addEventListener('input', () => {
-      callbacks.onSpeedChange(
-        sliderToDelay(Number.parseInt(els.speedSlider.value, 10))
-      )
+      dispatch({
+        type: 'SET_SPEED',
+        delayMs: sliderToDelay(Number.parseInt(els.speedSlider.value, 10))
+      })
     })
   }
 
   /** Read the current generator parameters from the inputs. */
-  getParams(): GeneratorParams {
+  private getParams(): GeneratorParams {
     const { els } = this
     return {
       source: els.inputSource.value.trim(),

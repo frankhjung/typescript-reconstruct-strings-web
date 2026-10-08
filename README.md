@@ -26,24 +26,30 @@ sequenceDiagram
   autonumber
   actor User
   participant UI as Controls UI
-  participant App as App Controller
+  participant App as App Runtime
+  participant Store as Pure Reducer
   participant Gen as Generator
   participant Asm as Assembler Engine
   participant Align as Alignment
   participant View as View Renderers
 
-  User->>UI: Select Preset / Generate
-  UI->>App: handleGenerate(params)
+  User->>UI: Click Generate / Select Preset
+  UI->>App: dispatch(Action: GENERATE)
+  App->>Store: update(state, GENERATE)
+  Store-->>App: [newState, Effect: RUN_GENERATOR]
+  
   App->>Gen: generateFragments(params)
   Gen-->>App: fragments
-  App->>Asm: traceAssembly(fragments, minOverlap)
-  Asm->>Asm: startSession(fragments, minOverlap)
-  loop Pure Session Unfold (until complete)
-    Asm->>Asm: stepSession(session)
-    Note over Asm: Emits ReductionEvent (filter / select / merge)
-  end
-  Asm-->>App: ReductionEvent[] / AssemblyResult
-  loop Playback / Step Scrubbing
+  App->>App: handleEffect(RUN_ASSEMBLY)
+  
+  App->>Asm: assembleWithTrace(fragments, minOverlap)
+  Note over Asm: Pure trace of ReductionEvents
+  Asm-->>App: AssemblyResult (steps)
+  
+  App->>Store: dispatch(Action: ASSEMBLY_SUCCESS)
+  Store-->>App: [newState, Effect: RENDER]
+  
+  loop Playback / Rendering
     App->>Align: alignContigsToSource(source, currentStep.pool)
     Align-->>App: AlignmentReport
     App->>View: renderPoolHtml / renderMergeTheatreHtml / renderDiffViewHtml
@@ -161,6 +167,9 @@ the [`docs/`](docs/README.md) directory:
 - [Data-Oriented Assembly Reduction (REQ-002)][req-002]:
   Pure algebraic data events and session transitions decoupling reduction
   from trace narration.
+- [Elm Reducer Architecture (REQ-003)][req-003]:
+  A pure reducer/state-machine architecture that isolates UI events,
+  application state, and side effects in the browser runtime.
 - [Assembly Dynamics and Parameter Heuristics][docs-heuristics]:
   Mathematical collision models, overlap lower and upper bounds,
   Lander–Waterman coverage depth, and calibrated parameter configurations.
@@ -174,6 +183,7 @@ the [`docs/`](docs/README.md) directory:
 [docs-index]: docs/README.md
 [req-001]: docs/REQ-001-interactive-olc-assembler-animation.md
 [req-002]: docs/REQ-002-data-oriented-assembly-reduction.md
+[req-003]: docs/REQ-003-elm-reducer-architecture.md
 
 ## Development Pipeline
 

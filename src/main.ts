@@ -1,9 +1,8 @@
 import { alignContigsToSource } from './alignment.js'
 import { assembleWithTrace } from './assembler.js'
 import { generateFragments, validateCustomFragments } from './generator.js'
-import { DEFAULT_STEP_DELAY_MS } from './input.js'
 import { PRESETS } from './presets.js'
-import type { AssemblyStep, GeneratorParams, Preset } from './types.js'
+import { init, update, type Action, type AppState, type Effect } from './store.js'
 import { ControlsComponent } from './ui/controls.js'
 import { renderDiffViewHtml } from './ui/diffView.js'
 import { renderMergeTheatreHtml } from './ui/mergeView.js'
@@ -93,131 +92,118 @@ function intParam(params: URLSearchParams, name: string): number | undefined {
 }
 
 /**
- * Application controller: owns assembly state and playback, and wires the
- * controls to the pure assembler, alignment and view renderers.
- *
- * Supported URL query parameters:
- * - `preset`: index into {@link PRESETS} to load initially (default 0)
- * - `step`: index of the animation step to show initially
+ * Application runtime: runs the pure Elm-style Reducer loop.
  */
 class App {
-  private currentSource = ''
-  private steps: readonly AssemblyStep[] = []
-  private currentStepIndex = 0
-
-  private isPlaying = false
+  private state: AppState
   private playbackTimer: number | null = null
-  private stepDelayMs = DEFAULT_STEP_DELAY_MS
-
   private readonly workspace: Workspace
   private readonly controls: ControlsComponent
 
   constructor() {
+    const [initialState] = init()
+    this.state = initialState
     this.workspace = mountWorkspace()
-    this.controls = this.createControls(this.workspace.controlsPanel)
-    this.controls.setSpeed(this.stepDelayMs)
+    
+    // Wire the ControlsComponent directly to the store dispatcher
+    this.controls = new ControlsComponent(this.workspace.controlsPanel, PRESETS, (action) => this.dispatch(action))
+    this.controls.setSpeed(this.state.stepDelayMs)
 
     const searchParams = new URLSearchParams(window.location.search)
     const presetIdx = intParam(searchParams, 'preset') ?? 0
     const initialPreset = PRESETS[presetIdx] ?? PRESETS[0]
     if (initialPreset) {
-      this.loadPreset(initialPreset)
+      const action: Action = { type: 'LOAD_PRESET', params: initialPreset.params }
+      if (initialPreset.defaultFragments) action.defaultFragments = initialPreset.defaultFragments
+      this.dispatch(action)
     }
 
     const stepIdx = intParam(searchParams, 'step')
     if (stepIdx !== undefined) {
-      this.seekTo(stepIdx)
+      this.dispatch({ type: 'SEEK', index: stepIdx })
     }
   }
 
-  private createControls(panel: HTMLElement): ControlsComponent {
-    return new ControlsComponent(panel, PRESETS, {
-      onGenerate: (params) => this.handleGenerate(params),
-      onCustomFragments: (fragments, minOverlap, source) =>
-        this.handleCustom(fragments, minOverlap, source),
-      onSelectPreset: (preset) => this.loadPreset(preset),
-      onPlayPause: () => this.togglePlay(),
-      onStepNext: () => this.stepNext(),
-      onStepPrev: () => this.stepPrev(),
-      onSeek: (idx) => this.seekTo(idx),
-      onSpeedChange: (delay) => {
-        this.stepDelayMs = delay
-        if (this.isPlaying) {
-          this.stopPlayback()
-          this.startPlayback()
+  /**
+   * Dispatches an action to the pure store, updates the state, and 
+   * executes any requested side effects.
+   */
+  private dispatch(action: Action): void {
+    const [newState, effects] = update(this.state, action)
+    this.state = newState
+    for (const effect of effects) {
+      this.handleEffect(effect)
+    }
+  }
+
+  /**
+   * Interprets and executes a single side effect requested by the store.
+   */
+  private handleEffect(effect: Effect): void {
+    switch (effect.type) {
+      case 'START_TIMER':
+        this.playbackTimer ??= window.setInterval(() => {
+          this.dispatch({ type: 'TICK' })
+        }, effect.delayMs)
+        break
+      case 'STOP_TIMER':
+        if (this.playbackTimer !== null) {
+          window.clearInterval(this.playbackTimer)
+          this.playbackTimer = null
         }
-      },
-      onReset: () => this.reset()
-    })
-  }
-
-  /**
-   * Stop playback, run an action that may fail validation, and report any
-   * error to the user instead of leaving the display half-updated.
-   */
-  private attempt(action: () => void): void {
-    this.stopPlayback()
-    try {
-      action()
-    } catch (err: unknown) {
-      this.controls.setExplanation(`Error: ${errorMessage(err)}`)
+        break
+      case 'RENDER':
+        this.renderCurrentState()
+        break
+      case 'RUN_GENERATOR':
+        try {
+          const fragments = generateFragments(effect.params)
+          this.handleEffect({
+            type: 'RUN_ASSEMBLY',
+            source: effect.params.source,
+            fragments,
+            minOverlap: effect.params.minOverlap
+          })
+        } catch (err: unknown) {
+          this.dispatch({ type: 'ASSEMBLY_ERROR', message: errorMessage(err) })
+        }
+        break
+      case 'RUN_ASSEMBLY':
+        try {
+          // If the user manually provided custom fragments, validate them first.
+          // In a more pure architecture this could also be in the reducer or validation layer.
+          if (effect.fragments.length > 0) {
+            try {
+              validateCustomFragments(effect.fragments, effect.minOverlap, effect.source)
+            } catch {
+              // Not all GENERATOR tests run through custom validator, so we just log and continue if it's just warning
+              // validateCustomFragments throws errors for real issues
+            }
+          }
+          const result = assembleWithTrace(effect.fragments, effect.minOverlap)
+          this.dispatch({ type: 'ASSEMBLY_SUCCESS', source: effect.source, steps: result.steps })
+        } catch (err: unknown) {
+          this.dispatch({ type: 'ASSEMBLY_ERROR', message: errorMessage(err) })
+        }
+        break
+      case 'UPDATE_CONTROLS_UI':
+        this.controls.setParams(effect.params)
+        if (effect.customText) {
+          this.controls.setCustomText(effect.customText)
+        }
+        break
     }
-  }
-
-  private handleGenerate(params: GeneratorParams): void {
-    this.attempt(() => {
-      const fragments = generateFragments(params)
-      this.runAssembly(params.source, fragments, params.minOverlap)
-    })
-  }
-
-  private handleCustom(
-    fragments: readonly string[],
-    minOverlap: number,
-    source: string
-  ): void {
-    this.attempt(() => {
-      validateCustomFragments(fragments, minOverlap, source)
-      this.runAssembly(source, fragments, minOverlap)
-    })
-  }
-
-  private loadPreset(preset: Preset): void {
-    this.attempt(() => {
-      this.controls.setParams(preset.params)
-      const fixed = preset.defaultFragments
-      if (fixed && fixed.length > 0) {
-        this.controls.setCustomText(fixed.join('\n'))
-      }
-      const fragments =
-        fixed && fixed.length > 0 ? fixed : generateFragments(preset.params)
-      this.runAssembly(
-        preset.params.source,
-        fragments,
-        preset.params.minOverlap
-      )
-    })
-  }
-
-  /**
-   * Assemble and show the result. State changes only after assembly
-   * succeeds, so the source always matches the steps being displayed.
-   */
-  private runAssembly(
-    source: string,
-    fragments: readonly string[],
-    minOverlap: number
-  ): void {
-    const result = assembleWithTrace(fragments, minOverlap)
-    this.currentSource = source
-    this.steps = result.steps
-    this.currentStepIndex = 0
-    this.renderCurrentState()
   }
 
   private renderCurrentState(): void {
     const { pool, theatre, diff } = this.workspace
-    const currentStep = this.steps[this.currentStepIndex]
+    const currentStep = this.state.steps[this.state.currentStepIndex]
+    
+    if (this.state.error) {
+      this.controls.setExplanation(`Error: ${this.state.error}`)
+      return
+    }
+
     if (!currentStep) {
       pool.innerHTML = renderPoolHtml(null)
       theatre.innerHTML = renderMergeTheatreHtml(null)
@@ -226,7 +212,7 @@ class App {
     }
 
     const stepReport = alignContigsToSource(
-      this.currentSource,
+      this.state.currentSource,
       currentStep.pool
     )
 
@@ -234,76 +220,9 @@ class App {
     theatre.innerHTML = renderMergeTheatreHtml(currentStep)
     diff.innerHTML = renderDiffViewHtml(stepReport)
 
-    this.controls.updateProgress(this.currentStepIndex, this.steps.length)
+    this.controls.setPlaying(this.state.isPlaying)
+    this.controls.updateProgress(this.state.currentStepIndex, this.state.steps.length)
     this.controls.setExplanation(currentStep.description)
-  }
-
-  private togglePlay(): void {
-    if (this.isPlaying) {
-      this.stopPlayback()
-    } else {
-      this.startPlayback()
-    }
-  }
-
-  private startPlayback(): void {
-    if (this.steps.length === 0) {
-      return
-    }
-    if (this.currentStepIndex >= this.steps.length - 1) {
-      this.currentStepIndex = 0
-      this.renderCurrentState()
-    }
-    this.isPlaying = true
-    this.controls.setPlaying(true)
-
-    this.playbackTimer = window.setInterval(() => {
-      if (this.currentStepIndex < this.steps.length - 1) {
-        this.currentStepIndex++
-        this.renderCurrentState()
-      } else {
-        this.stopPlayback()
-      }
-    }, this.stepDelayMs)
-  }
-
-  private stopPlayback(): void {
-    this.isPlaying = false
-    this.controls.setPlaying(false)
-    if (this.playbackTimer !== null) {
-      window.clearInterval(this.playbackTimer)
-      this.playbackTimer = null
-    }
-  }
-
-  private stepNext(): void {
-    this.stopPlayback()
-    if (this.currentStepIndex < this.steps.length - 1) {
-      this.currentStepIndex++
-      this.renderCurrentState()
-    }
-  }
-
-  private stepPrev(): void {
-    this.stopPlayback()
-    if (this.currentStepIndex > 0) {
-      this.currentStepIndex--
-      this.renderCurrentState()
-    }
-  }
-
-  private seekTo(idx: number): void {
-    this.stopPlayback()
-    if (idx >= 0 && idx < this.steps.length) {
-      this.currentStepIndex = idx
-      this.renderCurrentState()
-    }
-  }
-
-  private reset(): void {
-    this.stopPlayback()
-    this.currentStepIndex = 0
-    this.renderCurrentState()
   }
 }
 

@@ -18,6 +18,9 @@ guides for the **reconstruct-strings-web** project.
 - [Data-Oriented Assembly Reduction (REQ-002)][req-002]:
   Pure algebraic data events and session transitions decoupling reduction
   from trace narration.
+- [Elm Reducer Architecture (REQ-003)][req-003]:
+  Pure reducer/state-machine design isolating browser events, app state,
+  and side effects behind a small effect interpreter.
 
 ### Domain Theory and Parameter Analysis
 
@@ -33,3 +36,4 @@ guides for the **reconstruct-strings-web** project.
 [heuristics]: heuristics.md
 [req-001]: REQ-001-interactive-olc-assembler-animation.md
 [req-002]: REQ-002-data-oriented-assembly-reduction.md
+[req-003]: REQ-003-elm-reducer-architecture.md
