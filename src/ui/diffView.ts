@@ -117,8 +117,30 @@ export function renderDiffViewHtml(report: AlignmentReport | null): string {
   `
 
   // 4. Summary message
+  let summaryText: string
+  if (report.perfectMatch) {
+    summaryText = 'PERFECT RECONSTRUCTION (100% Identity, 0 errors)'
+  } else if (
+    report.uncoveredSpans.length > 0 &&
+    report.unalignedContigs.length === 0
+  ) {
+    const gapCount = report.uncoveredSpans.length
+    summaryText =
+      `PARTIAL ASSEMBLY: ${report.coveragePercent.toFixed(1)}% coverage with ` +
+      `${gapCount} coverage gap(s). Increase fragment count (m) or ` +
+      `lower overlap threshold (n).`
+  } else if (report.unalignedContigs.length > 0) {
+    summaryText =
+      `MISASSEMBLY DETECTED: ${report.unalignedContigs.length} contig(s) contain ` +
+      `chimeric joins not present in source.`
+  } else {
+    summaryText =
+      `FRAGMENTED ASSEMBLY: ${report.contigs.length} contigs covering ` +
+      `${report.coveragePercent.toFixed(1)}% of source.`
+  }
+
   const summaryMsg =
-    `<div class="status-explanation">` + `${escapeHtml(report.summary)}</div>`
+    `<div class="status-explanation">` + `${escapeHtml(summaryText)}</div>`
 
   return alignmentView + legend + metricsRow + summaryMsg
 }

@@ -133,8 +133,7 @@ describe('Declarative Views - Diff / Alignment View', () => {
       coveredSpans: [{ start: 0, end: 5 }],
       uncoveredSpans: [],
       alignments: [{ contig: 'ABCDE', sourceStart: 0, isExact: true }],
-      unalignedContigs: [],
-      summary: 'PERFECT RECONSTRUCTION'
+      unalignedContigs: []
     }
     const html = renderDiffViewHtml(report)
     assert.ok(html.includes('100% Perfect Match'))
@@ -154,13 +153,13 @@ describe('Declarative Views - Diff / Alignment View', () => {
       coveredSpans: [{ start: 0, end: 3 }],
       uncoveredSpans: [{ start: 3, end: 6 }],
       alignments: [{ contig: 'ABC', sourceStart: 0, isExact: true }],
-      unalignedContigs: ['ZZZ'],
-      summary: 'MISASSEMBLY DETECTED'
+      unalignedContigs: ['ZZZ']
     }
     const html = renderDiffViewHtml(report)
     assert.ok(html.includes('Misassembly'))
     assert.ok(html.includes('Chimera 1:'))
     assert.ok(html.includes('>Z<'))
+    assert.ok(html.includes('MISASSEMBLY DETECTED'))
   })
 })
 
@@ -195,21 +194,22 @@ describe('Security - HTML Sanitisation', () => {
     assert.ok(html.includes('&gt;'))
   })
 
-  it('escapes special characters in diff view summary', () => {
+  it('escapes special characters in diff view source and contigs', () => {
     const report: AlignmentReport = {
-      source: '<SRC>',
-      contigs: ['<SRC>'],
+      source: '<S>',
+      contigs: ['<S>'],
       perfectMatch: true,
-      coveredPositions: [true, true, true, true, true],
+      coveredPositions: [true, true, true],
       coveragePercent: 100,
-      coveredSpans: [{ start: 0, end: 5 }],
+      coveredSpans: [{ start: 0, end: 3 }],
       uncoveredSpans: [],
-      alignments: [{ contig: '<SRC>', sourceStart: 0, isExact: true }],
-      unalignedContigs: [],
-      summary: '<b onmouseover=alert(1)>Summary</b>'
+      alignments: [{ contig: '<S>', sourceStart: 0, isExact: true }],
+      unalignedContigs: []
     }
     const html = renderDiffViewHtml(report)
-    assert.ok(!html.includes('<b onmouseover'))
-    assert.ok(html.includes('&lt;b onmouseover'))
+    assert.ok(!html.includes('<div><</div>'))
+    assert.ok(html.includes('&lt;'))
+    assert.ok(html.includes('&gt;'))
+    assert.ok(html.includes('S'))
   })
 })

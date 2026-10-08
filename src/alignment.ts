@@ -3,7 +3,7 @@ import type { AlignmentReport, ContigAlignment, Span } from './types.js'
 /**
  * Find all start indices where needle appears as exact substring of haystack.
  */
-function findAllOccurrences(haystack: string, needle: string): number[] {
+export function findAllOccurrences(haystack: string, needle: string): number[] {
   const indices: number[] = []
   let pos = 0
   while ((pos = haystack.indexOf(needle, pos)) !== -1) {
@@ -16,7 +16,7 @@ function findAllOccurrences(haystack: string, needle: string): number[] {
 /**
  * Find the best local alignment window of contig against source.
  */
-function findBestWindow(
+export function findBestWindow(
   source: string,
   contig: string
 ): { start: number; matches: number; isExact: boolean } {
@@ -50,6 +50,42 @@ function findBestWindow(
     matches: maxMatches,
     isExact: maxMatches === contig.length
   }
+}
+
+/**
+ * Calculate continuous covered and uncovered spans based on position flags.
+ */
+export function calculateSpans(coveredPositions: readonly boolean[]): {
+  coveredSpans: Span[]
+  uncoveredSpans: Span[]
+} {
+  const sourceLen = coveredPositions.length
+  const coveredSpans: Span[] = []
+  const uncoveredSpans: Span[] = []
+
+  let inCovered = false
+  let spanStart = 0
+
+  for (let i = 0; i < sourceLen; i++) {
+    if (coveredPositions[i] && !inCovered) {
+      if (i > spanStart) {
+        uncoveredSpans.push({ start: spanStart, end: i })
+      }
+      spanStart = i
+      inCovered = true
+    } else if (!coveredPositions[i] && inCovered) {
+      coveredSpans.push({ start: spanStart, end: i })
+      spanStart = i
+      inCovered = false
+    }
+  }
+
+  if (sourceLen > spanStart) {
+    const finalSpans = inCovered ? coveredSpans : uncoveredSpans
+    finalSpans.push({ start: spanStart, end: sourceLen })
+  }
+
+  return { coveredSpans, uncoveredSpans }
 }
 
 /**
@@ -116,52 +152,10 @@ export function alignContigsToSource(
   }
 
   // Calculate covered and uncovered spans
-  const coveredSpans: Span[] = []
-  const uncoveredSpans: Span[] = []
-
-  let inCovered = false
-  let spanStart = 0
-
-  for (let i = 0; i < sourceLen; i++) {
-    if (coveredPositions[i] && !inCovered) {
-      if (i > spanStart) {
-        uncoveredSpans.push({ start: spanStart, end: i })
-      }
-      spanStart = i
-      inCovered = true
-    } else if (!coveredPositions[i] && inCovered) {
-      coveredSpans.push({ start: spanStart, end: i })
-      spanStart = i
-      inCovered = false
-    }
-  }
-
-  if (sourceLen > spanStart) {
-    const finalSpans = inCovered ? coveredSpans : uncoveredSpans
-    finalSpans.push({ start: spanStart, end: sourceLen })
-  }
+  const { coveredSpans, uncoveredSpans } = calculateSpans(coveredPositions)
 
   const coveredCount = coveredPositions.filter(Boolean).length
   const coveragePercent = sourceLen > 0 ? (coveredCount / sourceLen) * 100 : 0
-
-  let summary: string
-  if (perfectMatch) {
-    summary = 'PERFECT RECONSTRUCTION (100% Identity, 0 errors)'
-  } else if (uncoveredSpans.length > 0 && unalignedContigs.length === 0) {
-    const gapCount = uncoveredSpans.length
-    summary =
-      `PARTIAL ASSEMBLY: ${coveragePercent.toFixed(1)}% coverage with ` +
-      `${gapCount} coverage gap(s). Increase fragment count (m) or ` +
-      `lower overlap threshold (n).`
-  } else if (unalignedContigs.length > 0) {
-    summary =
-      `MISASSEMBLY DETECTED: ${unalignedContigs.length} contig(s) contain ` +
-      `chimeric joins not present in source.`
-  } else {
-    summary =
-      `FRAGMENTED ASSEMBLY: ${contigs.length} contigs covering ` +
-      `${coveragePercent.toFixed(1)}% of source.`
-  }
 
   return {
     source,
@@ -172,7 +166,6 @@ export function alignContigsToSource(
     coveredSpans,
     uncoveredSpans,
     alignments,
-    unalignedContigs,
-    summary
+    unalignedContigs
   }
 }

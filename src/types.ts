@@ -161,7 +161,6 @@ export interface AlignmentReport {
   readonly uncoveredSpans: readonly Span[]
   readonly alignments: readonly ContigAlignment[]
   readonly unalignedContigs: readonly string[]
-  readonly summary: string
 }
 
 /** A named example configuration offered in the UI. */

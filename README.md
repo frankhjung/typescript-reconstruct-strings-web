@@ -18,8 +18,8 @@ verifies reconstruction against a reference sequence.
 
 ## Architecture & Workflow
 
-The reconstruction animation pipeline coordinates fragment generation,
-iterative reduction assembly, and real-time reference verification:
+The reconstruction animation pipeline coordinates fragment generation, iterative
+reduction assembly, and real-time reference verification:
 
 ```mermaid
 sequenceDiagram
@@ -34,21 +34,23 @@ sequenceDiagram
   participant View as View Renderers
 
   User->>UI: Click Generate / Select Preset
-  UI->>App: dispatch(Action: GENERATE)
-  App->>Store: update(state, GENERATE)
-  Store-->>App: [newState, Effect: RUN_GENERATOR]
-  
-  App->>Gen: generateFragments(params)
-  Gen-->>App: fragments
-  App->>App: handleEffect(RUN_ASSEMBLY)
-  
+  UI->>App: dispatch(Action: GENERATE / LOAD_PRESET)
+  App->>Store: update(state, Action)
+  Store-->>App: [newState, Effect: RUN_GENERATOR / RUN_ASSEMBLY]
+
+  opt If RUN_GENERATOR (No fixed fragments)
+    App->>Gen: generateFragments(params)
+    Gen-->>App: fragments
+    App->>App: handleEffect(RUN_ASSEMBLY)
+  end
+
   App->>Asm: assembleWithTrace(fragments, minOverlap)
   Note over Asm: Pure trace of ReductionEvents
   Asm-->>App: AssemblyResult (steps)
-  
+
   App->>Store: dispatch(Action: ASSEMBLY_SUCCESS)
   Store-->>App: [newState, Effect: RENDER]
-  
+
   loop Playback / Rendering
     App->>Align: alignContigsToSource(source, currentStep.pool)
     Align-->>App: AlignmentReport
@@ -159,26 +161,27 @@ the [`docs/`](docs/README.md) directory:
 
 - [Documentation Index][docs-index]: Comprehensive navigation guide for all
   project documentation.
-- [Domain Glossary][docs-glossary]: Definitions for domain concepts
-  including fragments, contigs, overlaps, coverage, and chimeric joins.
-- [Interactive OLC Assembler Specification (REQ-001)][req-001]:
-  Functional requirements, generation parameters, state machine transitions,
-  and standalone delivery model.
-- [Data-Oriented Assembly Reduction (REQ-002)][req-002]:
-  Pure algebraic data events and session transitions decoupling reduction
-  from trace narration.
-- [Elm Reducer Architecture (REQ-003)][req-003]:
-  A pure reducer/state-machine architecture that isolates UI events,
-  application state, and side effects in the browser runtime.
+- [Domain Glossary][docs-glossary]: Definitions for domain concepts including
+  fragments, contigs, overlaps, coverage, and chimeric joins.
+- [Interactive OLC Assembler Specification (REQ-001)][req-001]: Functional
+  requirements, generation parameters, state machine transitions, and standalone
+  delivery model.
+- [Data-Oriented Assembly Reduction (REQ-002)][req-002]: Pure algebraic data
+  events and session transitions decoupling reduction from trace narration.
+- [Elm Reducer Architecture (REQ-003)][req-003]: A pure reducer/state-machine
+  architecture that isolates UI events, application state, and side effects in
+  the browser runtime.
 - [Main Controller and Assembly Reducer Refactor (REQ-004)][req-004]:
   Incremental migration plan for the imperative controller and trace builder
   refactor toward pure reducer-driven state transitions.
-- [Assembly Dynamics and Parameter Heuristics][docs-heuristics]:
-  Mathematical collision models, overlap lower and upper bounds,
-  Lander–Waterman coverage depth, and calibrated parameter configurations.
-- [Reconstructing DNA from Short Fragments][dna-doc]:
-  Biological background on *de novo* genome assembly, contrasting OLC and
-  de Bruijn graph paradigms.
+- [Assembly Dynamics and Parameter Heuristics][docs-heuristics]: Mathematical
+  collision models, overlap lower and upper bounds, Lander–Waterman coverage
+  depth, and calibrated parameter configurations.
+- [Reconstructing DNA from Short Fragments][dna-doc]: Biological background on
+  *de novo* genome assembly, contrasting OLC and de Bruijn graph paradigms.
+- [Alignment Module Refactor (REQ-005)][req-005]: Extraction of pure interval
+  arithmetic and sequence alignment logic, decoupling data reporting from UI
+  narration.
 
 [dna-doc]: docs/reconstructing-complete-dna-strand-from-short-fragments.md
 [docs-glossary]: docs/GLOSSARY.md
@@ -188,6 +191,7 @@ the [`docs/`](docs/README.md) directory:
 [req-002]: docs/REQ-002-data-oriented-assembly-reduction.md
 [req-003]: docs/REQ-003-elm-reducer-architecture.md
 [req-004]: docs/REQ-004-main-controller-and-assembly-reducer-refactor.md
+[req-005]: docs/REQ-005-alignment-module-refactor.md
 
 ## Development Pipeline
 
