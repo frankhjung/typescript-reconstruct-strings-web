@@ -170,6 +170,9 @@ the [`docs/`](docs/README.md) directory:
 - [Elm Reducer Architecture (REQ-003)][req-003]:
   A pure reducer/state-machine architecture that isolates UI events,
   application state, and side effects in the browser runtime.
+- [Main Controller and Assembly Reducer Refactor (REQ-004)][req-004]:
+  Incremental migration plan for the imperative controller and trace builder
+  refactor toward pure reducer-driven state transitions.
 - [Assembly Dynamics and Parameter Heuristics][docs-heuristics]:
   Mathematical collision models, overlap lower and upper bounds,
   Lander–Waterman coverage depth, and calibrated parameter configurations.
@@ -184,6 +187,7 @@ the [`docs/`](docs/README.md) directory:
 [req-001]: docs/REQ-001-interactive-olc-assembler-animation.md
 [req-002]: docs/REQ-002-data-oriented-assembly-reduction.md
 [req-003]: docs/REQ-003-elm-reducer-architecture.md
+[req-004]: docs/REQ-004-main-controller-and-assembly-reducer-refactor.md
 
 ## Development Pipeline
 
@@ -212,8 +216,9 @@ Available development targets:
   - `assembler.ts`: The core OLC iterative reduction assembler.
   - `generator.ts`: Fragment sampling logic and parameter validation.
   - `input.ts`: Input parsing and validation utilities.
-  - `main.ts`: Application controller wiring UI to domain logic.
+  - `main.ts`: Browser runtime shell that interprets reducer effects.
   - `presets.ts`: Built-in sequence presets.
+  - `store.ts`: Pure reducer, state model, action union, and effect plan.
   - `types.ts`: Core domain interfaces.
   - `ui/`: Pure HTML template renderers for DOM views.
 - `static/index.html`: Base HTML template.

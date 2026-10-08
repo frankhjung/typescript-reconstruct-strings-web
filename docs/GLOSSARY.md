@@ -2,6 +2,12 @@
 
 [← Back to Documentation Index](README.md)
 
+## Action
+
+A pure data payload representing a user intent (e.g. clicking "Play") or a system event (e.g. a timer tick) dispatched to the Reducer. It contains no imperative logic.
+
+_Avoid_: Event, Command
+
 ## Assembly Error
 
 An explicit failure condition raised when input preconditions are violated,
@@ -88,6 +94,28 @@ process, maintaining the active pool, minimum overlap threshold, and completion
 status.
 
 _Avoid_: Assembler State, State Machine
+
+## Effect
+
+A requested runtime action produced by the state machine after processing an
+input event. Effects describe what the browser shell should do next, while the
+reducer remains responsible for deciding the next state.
+
+_Avoid_: Side effect
+
+## Reducer
+
+A pure function that maps the current application state and an action to the
+next state and a list of requested effects. In this project, the reducer is the
+core decision engine for playback, assembly, and UI transitions.
+
+_Avoid_: Controller
+
+## Runtime Shell
+
+The effectful boundary layer that maintains the current state reference, intercepts `Action`s, delegates to the `Reducer`, and executes the returned `Effect`s. Responsible for DOM mutations and timers.
+
+_Avoid_: App, Container
 
 ## Strand
 

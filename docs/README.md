@@ -21,6 +21,9 @@ guides for the **reconstruct-strings-web** project.
 - [Elm Reducer Architecture (REQ-003)][req-003]:
   Pure reducer/state-machine design isolating browser events, app state,
   and side effects behind a small effect interpreter.
+- [Main Controller and Assembly Reducer Refactor (REQ-004)][req-004]:
+  Incremental migration plan to move the imperative controller and trace
+  builder towards a fully reducer-driven architecture.
 
 ### Domain Theory and Parameter Analysis
 
@@ -37,3 +40,4 @@ guides for the **reconstruct-strings-web** project.
 [req-001]: REQ-001-interactive-olc-assembler-animation.md
 [req-002]: REQ-002-data-oriented-assembly-reduction.md
 [req-003]: REQ-003-elm-reducer-architecture.md
+[req-004]: REQ-004-main-controller-and-assembly-reducer-refactor.md
