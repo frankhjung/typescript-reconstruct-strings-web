@@ -1,13 +1,13 @@
-import type { AssemblyStep, GeneratorParams } from './types.js'
+import type { GeneratorParams, ReductionEvent } from './types.js'
 import { DEFAULT_STEP_DELAY_MS } from './input.js'
 
 /**
- * Represents the immutable application state, containing the sequence 
- * source, assembly steps, and current playback position.
+ * Represents the immutable application state, containing the sequence
+ * source, assembly reduction events, and current playback position.
  */
 export interface AppState {
   currentSource: string
-  steps: readonly AssemblyStep[]
+  events: readonly ReductionEvent[]
   currentStepIndex: number
   isPlaying: boolean
   stepDelayMs: number
@@ -15,25 +15,38 @@ export interface AppState {
 }
 
 /**
- * Sum type of all possible user intents and system events that can 
+ * Sum type of all possible user intents and system events that can
  * trigger a state transition.
  */
 export type Action =
   | { type: 'GENERATE'; params: GeneratorParams }
-  | { type: 'APPLY_CUSTOM'; fragments: readonly string[]; minOverlap: number; source: string }
-  | { type: 'LOAD_PRESET'; params: GeneratorParams; defaultFragments?: readonly string[] }
+  | {
+      type: 'APPLY_CUSTOM'
+      fragments: readonly string[]
+      minOverlap: number
+      source: string
+    }
+  | {
+      type: 'LOAD_PRESET'
+      params: GeneratorParams
+      defaultFragments?: readonly string[]
+    }
   | { type: 'TOGGLE_PLAY' }
   | { type: 'TICK' }
   | { type: 'STEP_NEXT' }
   | { type: 'STEP_PREV' }
   | { type: 'SEEK'; index: number }
   | { type: 'SET_SPEED'; delayMs: number }
-  | { type: 'ASSEMBLY_SUCCESS'; source: string; steps: readonly AssemblyStep[] }
+  | {
+      type: 'ASSEMBLY_SUCCESS'
+      source: string
+      events: readonly ReductionEvent[]
+    }
   | { type: 'ASSEMBLY_ERROR'; message: string }
   | { type: 'RESET' }
 
 /**
- * Sum type of all side effects (DOM mutations, timers, or intensive 
+ * Sum type of all side effects (DOM mutations, timers, or intensive
  * computations) requested by the pure state reducer.
  */
 export type Effect =
@@ -41,8 +54,17 @@ export type Effect =
   | { type: 'STOP_TIMER' }
   | { type: 'RENDER' }
   | { type: 'RUN_GENERATOR'; params: GeneratorParams }
-  | { type: 'RUN_ASSEMBLY'; source: string; fragments: readonly string[]; minOverlap: number }
-  | { type: 'UPDATE_CONTROLS_UI'; params: GeneratorParams; customText?: string }
+  | {
+      type: 'RUN_ASSEMBLY'
+      source: string
+      fragments: readonly string[]
+      minOverlap: number
+    }
+  | {
+      type: 'UPDATE_CONTROLS_UI'
+      params: GeneratorParams
+      customText?: string
+    }
 
 /**
  * Construct the initial application state and any immediate effects.
@@ -51,7 +73,7 @@ export function init(): [AppState, Effect[]] {
   return [
     {
       currentSource: '',
-      steps: [],
+      events: [],
       currentStepIndex: 0,
       isPlaying: false,
       stepDelayMs: DEFAULT_STEP_DELAY_MS,
@@ -62,7 +84,7 @@ export function init(): [AppState, Effect[]] {
 }
 
 /**
- * Pure state reducer. Computes the next immutable state and a list of 
+ * Pure state reducer. Computes the next immutable state and a list of
  * side effects to be executed by the runtime shell.
  */
 export function update(state: AppState, action: Action): [AppState, Effect[]] {
@@ -70,7 +92,10 @@ export function update(state: AppState, action: Action): [AppState, Effect[]] {
     case 'GENERATE':
       return [
         { ...state, isPlaying: false },
-        [{ type: 'STOP_TIMER' }, { type: 'RUN_GENERATOR', params: action.params }]
+        [
+          { type: 'STOP_TIMER' },
+          { type: 'RUN_GENERATOR', params: action.params }
+        ]
       ]
     case 'APPLY_CUSTOM':
       return [
@@ -93,7 +118,9 @@ export function update(state: AppState, action: Action): [AppState, Effect[]] {
           {
             type: 'UPDATE_CONTROLS_UI',
             params: action.params,
-            ...(action.defaultFragments ? { customText: action.defaultFragments.join('\n') } : {})
+            ...(action.defaultFragments
+              ? { customText: action.defaultFragments.join('\n') }
+              : {})
           },
           action.defaultFragments && action.defaultFragments.length > 0
             ? {
@@ -106,23 +133,25 @@ export function update(state: AppState, action: Action): [AppState, Effect[]] {
         ]
       ]
     case 'TOGGLE_PLAY': {
-      if (state.steps.length === 0) return [state, []]
+      if (state.events.length === 0) return [state, []]
       const willPlay = !state.isPlaying
       let nextIndex = state.currentStepIndex
-      if (willPlay && nextIndex >= state.steps.length - 1) {
+      if (willPlay && nextIndex >= state.events.length - 1) {
         nextIndex = 0 // loop back to start
       }
       return [
         { ...state, isPlaying: willPlay, currentStepIndex: nextIndex },
         [
-          willPlay ? { type: 'START_TIMER', delayMs: state.stepDelayMs } : { type: 'STOP_TIMER' },
+          willPlay
+            ? { type: 'START_TIMER', delayMs: state.stepDelayMs }
+            : { type: 'STOP_TIMER' },
           { type: 'RENDER' }
         ]
       ]
     }
     case 'TICK': {
       if (!state.isPlaying) return [state, []]
-      if (state.currentStepIndex < state.steps.length - 1) {
+      if (state.currentStepIndex < state.events.length - 1) {
         return [
           { ...state, currentStepIndex: state.currentStepIndex + 1 },
           [{ type: 'RENDER' }]
@@ -135,7 +164,7 @@ export function update(state: AppState, action: Action): [AppState, Effect[]] {
       }
     }
     case 'SEEK': {
-      const maxIdx = Math.max(0, state.steps.length - 1)
+      const maxIdx = Math.max(0, state.events.length - 1)
       const clamped = Math.min(Math.max(0, action.index), maxIdx)
       return [
         { ...state, currentStepIndex: clamped, isPlaying: false },
@@ -143,27 +172,45 @@ export function update(state: AppState, action: Action): [AppState, Effect[]] {
       ]
     }
     case 'STEP_NEXT': {
-      if (state.currentStepIndex < state.steps.length - 1) {
+      if (state.currentStepIndex < state.events.length - 1) {
         return [
-          { ...state, currentStepIndex: state.currentStepIndex + 1, isPlaying: false },
+          {
+            ...state,
+            currentStepIndex: state.currentStepIndex + 1,
+            isPlaying: false
+          },
           [{ type: 'STOP_TIMER' }, { type: 'RENDER' }]
         ]
       }
-      return [{ ...state, isPlaying: false }, [{ type: 'STOP_TIMER' }, { type: 'RENDER' }]]
+      return [
+        { ...state, isPlaying: false },
+        [{ type: 'STOP_TIMER' }, { type: 'RENDER' }]
+      ]
     }
     case 'STEP_PREV': {
       if (state.currentStepIndex > 0) {
         return [
-          { ...state, currentStepIndex: state.currentStepIndex - 1, isPlaying: false },
+          {
+            ...state,
+            currentStepIndex: state.currentStepIndex - 1,
+            isPlaying: false
+          },
           [{ type: 'STOP_TIMER' }, { type: 'RENDER' }]
         ]
       }
-      return [{ ...state, isPlaying: false }, [{ type: 'STOP_TIMER' }, { type: 'RENDER' }]]
+      return [
+        { ...state, isPlaying: false },
+        [{ type: 'STOP_TIMER' }, { type: 'RENDER' }]
+      ]
     }
     case 'SET_SPEED': {
       const isPlaying = state.isPlaying
       const effects: Effect[] = isPlaying
-        ? [{ type: 'STOP_TIMER' }, { type: 'START_TIMER', delayMs: action.delayMs }, { type: 'RENDER' }]
+        ? [
+            { type: 'STOP_TIMER' },
+            { type: 'START_TIMER', delayMs: action.delayMs },
+            { type: 'RENDER' }
+          ]
         : [{ type: 'RENDER' }] // Re-render for UI sync
       return [{ ...state, stepDelayMs: action.delayMs }, effects]
     }
@@ -172,7 +219,7 @@ export function update(state: AppState, action: Action): [AppState, Effect[]] {
         {
           ...state,
           currentSource: action.source,
-          steps: action.steps,
+          events: action.events,
           currentStepIndex: 0,
           isPlaying: false,
           error: null

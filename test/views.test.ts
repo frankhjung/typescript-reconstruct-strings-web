@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { renderPoolHtml } from '../src/ui/poolView.js'
 import { renderMergeTheatreHtml } from '../src/ui/mergeView.js'
 import { renderDiffViewHtml } from '../src/ui/diffView.js'
-import type { AlignmentReport, AssemblyStep } from '../src/types.js'
+import type { AlignmentReport } from '../src/types.js'
+import type { StepViewModel } from '../src/ui/stepView.js'
 
 describe('Declarative Views - Pool View', () => {
   it('renders empty string when step is null', () => {
@@ -11,10 +12,9 @@ describe('Declarative Views - Pool View', () => {
   })
 
   it('renders fragment cards for active pool', () => {
-    const step: AssemblyStep = {
-      stepIndex: 0,
-      type: 'init',
+    const step: StepViewModel = {
       pool: ['ABC', 'BCD'],
+      removed: [],
       description: 'Initial pool'
     }
     const html = renderPoolHtml(step)
@@ -24,15 +24,14 @@ describe('Declarative Views - Pool View', () => {
   })
 
   it('highlights prefix and suffix candidates with badges', () => {
-    const step: AssemblyStep = {
-      stepIndex: 1,
-      type: 'find-overlap',
+    const step: StepViewModel = {
       pool: ['ABC', 'BCD'],
       candidate: {
         prefix: 'ABC',
         suffix: 'BCD',
         matchLength: 2
       },
+      removed: [],
       description: 'Found overlap'
     }
     const html = renderPoolHtml(step)
@@ -43,12 +42,10 @@ describe('Declarative Views - Pool View', () => {
   })
 
   it('renders removed and merged fragments', () => {
-    const step: AssemblyStep = {
-      stepIndex: 2,
-      type: 'filter-dynamic',
+    const step: StepViewModel = {
       pool: ['ABCD'],
       mergedFragment: 'ABCD',
-      removedFragments: [{ fragment: 'BC', reason: 'contained' }],
+      removed: [{ fragment: 'BC', reason: 'contained' }],
       description: 'Filtered contained'
     }
     const html = renderPoolHtml(step)
@@ -64,26 +61,24 @@ describe('Declarative Views - Merge Theatre', () => {
     const emptyHtml = renderMergeTheatreHtml(null)
     assert.ok(emptyHtml.includes('theatre-empty'))
 
-    const completedStep: AssemblyStep = {
-      stepIndex: 5,
-      type: 'completed',
+    const completedStep: StepViewModel = {
       pool: ['ABCDE'],
-      description: 'Done'
+      removed: [],
+      description: 'Assembly complete. See reference comparison below.'
     }
     const completedHtml = renderMergeTheatreHtml(completedStep)
     assert.ok(completedHtml.includes('Assembly complete'))
   })
 
   it('renders aligned prefix, suffix, and overlap cells', () => {
-    const step: AssemblyStep = {
-      stepIndex: 1,
-      type: 'find-overlap',
+    const step: StepViewModel = {
       pool: ['ABC', 'BCD'],
       candidate: {
         prefix: 'ABC',
         suffix: 'BCD',
         matchLength: 2
       },
+      removed: [],
       description: 'Overlap found'
     }
     const html = renderMergeTheatreHtml(step)
@@ -95,9 +90,7 @@ describe('Declarative Views - Merge Theatre', () => {
   })
 
   it('renders merged row on merge-pair step', () => {
-    const step: AssemblyStep = {
-      stepIndex: 2,
-      type: 'merge-pair',
+    const step: StepViewModel = {
       pool: ['ABCD'],
       candidate: {
         prefix: 'ABC',
@@ -105,6 +98,7 @@ describe('Declarative Views - Merge Theatre', () => {
         matchLength: 2
       },
       mergedFragment: 'ABCD',
+      removed: [],
       description: 'Merged pair'
     }
     const html = renderMergeTheatreHtml(step)
@@ -165,10 +159,9 @@ describe('Declarative Views - Diff / Alignment View', () => {
 
 describe('Security - HTML Sanitisation', () => {
   it('escapes special HTML characters in pool view', () => {
-    const maliciousStep: AssemblyStep = {
-      stepIndex: 0,
-      type: 'init',
+    const maliciousStep: StepViewModel = {
       pool: ['<script>alert(1)</script>'],
+      removed: [],
       description: 'Test XSS'
     }
     const html = renderPoolHtml(maliciousStep)
@@ -177,15 +170,14 @@ describe('Security - HTML Sanitisation', () => {
   })
 
   it('escapes special HTML characters in merge theatre', () => {
-    const maliciousStep: AssemblyStep = {
-      stepIndex: 1,
-      type: 'find-overlap',
+    const maliciousStep: StepViewModel = {
       pool: ['<A>', 'A>B'],
       candidate: {
         prefix: '<A>',
         suffix: 'A>B',
         matchLength: 1
       },
+      removed: [],
       description: 'Test overlap'
     }
     const html = renderMergeTheatreHtml(maliciousStep)

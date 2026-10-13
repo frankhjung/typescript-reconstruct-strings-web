@@ -1,25 +1,31 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { update, init } from '../src/store.js'
-import type { AssemblyStep } from '../src/types.js'
+import type { ReductionEvent } from '../src/types.js'
+
+const dummyEvent: ReductionEvent = {
+  kind: 'initial-filtered',
+  pool: ['ABC'],
+  removed: []
+}
 
 test('store reducer', async (t) => {
   await t.test('init returns default state and no effects', () => {
     const [state, effects] = init()
-    assert.deepEqual(state.steps, [])
+    assert.deepEqual(state.events, [])
     assert.equal(state.currentStepIndex, 0)
     assert.equal(state.isPlaying, false)
     assert.equal(state.stepDelayMs, 1000)
     assert.deepEqual(effects, [])
   })
 
-  await t.test('TOGGLE_PLAY starts timer when paused and steps exist', () => {
+  await t.test('TOGGLE_PLAY starts timer when paused and events exist', () => {
     const [initialState] = init()
-    const stateWithSteps = {
+    const stateWithEvents = {
       ...initialState,
-      steps: [{ pool: [], overlaps: [], merges: [], description: 'Test' } as unknown as AssemblyStep]
+      events: [dummyEvent]
     }
-    const [newState, effects] = update(stateWithSteps, { type: 'TOGGLE_PLAY' })
+    const [newState, effects] = update(stateWithEvents, { type: 'TOGGLE_PLAY' })
     assert.equal(newState.isPlaying, true)
     assert.deepEqual(effects, [
       { type: 'START_TIMER', delayMs: 1000 },
@@ -29,10 +35,10 @@ test('store reducer', async (t) => {
 
   await t.test('TOGGLE_PLAY stops timer when playing', () => {
     const [initialState] = init()
-    const playingState = { 
-      ...initialState, 
+    const playingState = {
+      ...initialState,
       isPlaying: true,
-      steps: [{ pool: [], overlaps: [], merges: [], description: 'Test' } as unknown as AssemblyStep]
+      events: [dummyEvent]
     }
     const [newState, effects] = update(playingState, { type: 'TOGGLE_PLAY' })
     assert.equal(newState.isPlaying, false)
@@ -45,26 +51,20 @@ test('store reducer', async (t) => {
       ...initialState,
       isPlaying: true,
       currentStepIndex: 0,
-      steps: [
-        { pool: [], overlaps: [], merges: [], description: 'S1' } as unknown as AssemblyStep,
-        { pool: [], overlaps: [], merges: [], description: 'S2' } as unknown as AssemblyStep
-      ]
+      events: [dummyEvent, dummyEvent]
     }
     const [newState, effects] = update(playingState, { type: 'TICK' })
     assert.equal(newState.currentStepIndex, 1)
     assert.deepEqual(effects, [{ type: 'RENDER' }])
   })
 
-  await t.test('TICK stops playback at end of steps', () => {
+  await t.test('TICK stops playback at end of events', () => {
     const [initialState] = init()
     const playingState = {
       ...initialState,
       isPlaying: true,
-      currentStepIndex: 1, // last step
-      steps: [
-        { pool: [], overlaps: [], merges: [], description: 'S1' } as unknown as AssemblyStep,
-        { pool: [], overlaps: [], merges: [], description: 'S2' } as unknown as AssemblyStep
-      ]
+      currentStepIndex: 1, // last event
+      events: [dummyEvent, dummyEvent]
     }
     const [newState, effects] = update(playingState, { type: 'TICK' })
     assert.equal(newState.currentStepIndex, 1) // unchanged
@@ -77,10 +77,7 @@ test('store reducer', async (t) => {
     const state = {
       ...initialState,
       isPlaying: true,
-      steps: [
-        { pool: [], overlaps: [], merges: [], description: 'S1' } as unknown as AssemblyStep,
-        { pool: [], overlaps: [], merges: [], description: 'S2' } as unknown as AssemblyStep
-      ]
+      events: [dummyEvent, dummyEvent]
     }
     const [newState, effects] = update(state, { type: 'SEEK', index: 5 })
     assert.equal(newState.isPlaying, false)

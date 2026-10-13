@@ -1,6 +1,5 @@
-import type { AssemblyStep } from '../types.js'
 import { escapeHtml } from './escape.js'
-import { stepDetails } from './stepDetails.js'
+import type { StepViewModel } from './stepView.js'
 
 const GAP_CELL = '<div class="char-cell gap"></div>'
 
@@ -21,14 +20,14 @@ function row(label: string, cells: string): string {
  * Pure template renderer for the merge theatre demonstrating suffix-prefix
  * sliding alignment and fused contig output.
  */
-export function renderMergeTheatreHtml(step: AssemblyStep | null): string {
-  const candidate = step ? stepDetails(step).candidate : undefined
+export function renderMergeTheatreHtml(step: StepViewModel | null): string {
+  const candidate = step?.candidate
   if (!step || !candidate) {
-    const msg =
-      step?.type === 'completed'
-        ? 'Assembly complete. See reference comparison below.'
-        : 'No active merge in this step. ' +
-          'Step forward to observe pairwise overlap.'
+    const isComplete = step?.description.includes('complete') ?? false
+    const msg = isComplete
+      ? 'Assembly complete. See reference comparison below.'
+      : 'No active merge in this step. ' +
+        'Step forward to observe pairwise overlap.'
     return `<div class="theatre-empty">${msg}</div>`
   }
 
@@ -57,8 +56,8 @@ export function renderMergeTheatreHtml(step: AssemblyStep | null): string {
     .join('')
 
   let mergedRow = ''
-  if (step.type === 'merge-pair' || step.type === 'filter-dynamic') {
-    const mergedStr = prefix + suffix.slice(matchLength)
+  if (step.mergedFragment !== undefined) {
+    const mergedStr = step.mergedFragment
     const mergedCells = Array.from(mergedStr)
       .map((char, i) => {
         let cls = 'char-cell suffix-char'

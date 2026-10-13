@@ -25,7 +25,6 @@ export interface RemovedFragment {
 
 /**
  * Closed discriminated union of pure domain events emitted during assembly.
- * Unlike AssemblyStep, ReductionEvent contains no presentation strings.
  */
 export type ReductionEvent =
   | {
@@ -68,60 +67,6 @@ export interface ReductionSession {
   readonly pendingMerged?: string
   readonly pendingDynamicRemoved?: readonly RemovedFragment[]
 }
-
-/** Fields shared by every step of the assembly trace. */
-export interface BaseAssemblyStep {
-  readonly stepIndex: number
-  /** Active fragment pool after this step. */
-  readonly pool: readonly string[]
-  /** Human readable explanation of the step. */
-  readonly description: string
-}
-
-export interface InitStep extends BaseAssemblyStep {
-  readonly type: 'init'
-}
-
-export interface FilterInitialStep extends BaseAssemblyStep {
-  readonly type: 'filter-initial'
-  readonly removedFragments?: readonly RemovedFragment[]
-}
-
-export interface FindOverlapStep extends BaseAssemblyStep {
-  readonly type: 'find-overlap'
-  readonly candidate: OverlapCandidate
-}
-
-export interface MergePairStep extends BaseAssemblyStep {
-  readonly type: 'merge-pair'
-  readonly candidate: OverlapCandidate
-  readonly mergedFragment: string
-}
-
-export interface FilterDynamicStep extends BaseAssemblyStep {
-  readonly type: 'filter-dynamic'
-  readonly candidate?: OverlapCandidate
-  readonly removedFragments?: readonly RemovedFragment[]
-  readonly mergedFragment?: string
-}
-
-export interface CanonicalSortStep extends BaseAssemblyStep {
-  readonly type: 'canonical-sort'
-}
-
-export interface CompletedStep extends BaseAssemblyStep {
-  readonly type: 'completed'
-}
-
-/** Discriminated union of all assembly trace steps. */
-export type AssemblyStep =
-  | InitStep
-  | FilterInitialStep
-  | FindOverlapStep
-  | MergePairStep
-  | FilterDynamicStep
-  | CanonicalSortStep
-  | CompletedStep
 
 /** Parameters for generating random fragments from a source string. */
 export interface GeneratorParams {

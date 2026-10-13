@@ -2,6 +2,10 @@
 
 [← Back to Documentation Index](README.md)
 
+## Status
+
+Implemented
+
 ## Context
 
 The sequence assembler was previously structured around a monolithic function

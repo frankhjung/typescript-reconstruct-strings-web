@@ -3,7 +3,7 @@
 [← Back to Documentation Index](README.md)
 
 Reconstructing a complete DNA strand from short fragments—a process known as
-[*de novo* sequence assembly][de-novo-sequence-assembly]—amounts to solving a
+[_de novo_ sequence assembly][de-novo-sequence-assembly]—amounts to solving a
 massive jigsaw puzzle where the reference picture is missing and pieces overlap
 with one another.
 
@@ -114,7 +114,7 @@ pairwise fragment-overlap model.
      prefix $(k - 1)$-mer to its suffix $(k - 1)$-mer.
 3. **Find an Eulerian Path:** Rather than visiting every node (the NP-complete
    Hamiltonian path problem on overlap graphs), de Bruijn graphs model assembly
-   as finding a path that visits every *edge* (an
+   as finding a path that visits every _edge_ (an
    [Eulerian path][eulerian-path]). An Eulerian path can be solved in linear
    time, $O(V + E)$, using [Hierholzer's algorithm][hierholzers-algorithm].
 

@@ -32,21 +32,21 @@ the view layer.
 
 ### In Scope
 
-* Extracting interval arithmetic (span calculation and boolean coverage arrays)
+- Extracting interval arithmetic (span calculation and boolean coverage arrays)
   into pure generic functions.
-* Extracting sequence alignment searching (exact occurrences and sliding
+- Extracting sequence alignment searching (exact occurrences and sliding
   windows) into pure query functions.
-* Moving the summary string generation into `src/ui/diffView.ts` (or a dedicated
+- Moving the summary string generation into `src/ui/diffView.ts` (or a dedicated
   narration module), ensuring `alignment.ts` returns purely algebraic
   `AlignmentReport` data.
-* Updating existing tests and views to consume the decoupled functions.
+- Updating existing tests and views to consume the decoupled functions.
 
 ### Out of Scope
 
-* Introducing complex bioinformatics alignment algorithms (like Smith-Waterman
+- Introducing complex bioinformatics alignment algorithms (like Smith-Waterman
   or Needleman-Wunsch). The existing sliding-window approach is sufficient for
   our simulated fragments.
-* Changing the definition of what constitutes a "perfect match" or a "coverage
+- Changing the definition of what constitutes a "perfect match" or a "coverage
   gap".
 
 ## Functional Requirements
@@ -107,24 +107,24 @@ identical to the pre-refactor rendering for all presets and inputs.
 
 ### Benefits
 
-* **Separation of Concerns:** UI text logic no longer contaminates the pure
+- **Separation of Concerns:** UI text logic no longer contaminates the pure
   mathematical domain.
-* **Locality & Leverage:** Interval math and sequence searching become reusable,
+- **Locality & Leverage:** Interval math and sequence searching become reusable,
   high-leverage utility functions.
-* **Testability:** Mathematical edge cases can be tested natively without
+- **Testability:** Mathematical edge cases can be tested natively without
   parsing long UI strings.
 
 ### Costs
 
-* Mild churn in `src/types.ts` as the `AlignmentReport` interface sheds its
+- Mild churn in `src/types.ts` as the `AlignmentReport` interface sheds its
   `summary` string field.
 
 ## Acceptance Criteria
 
-* [x] `alignContigsToSource` returns only typed algebraic data and no
-  human-readable summary text.
-* [x] UI summary string generation is localized entirely within
-  `src/ui/diffView.ts` (or similar view tier).
-* [x] Span and interval arithmetic is extracted into a standalone pure function.
-* [x] All view and domain tests pass, confirming no visible change in
-  application behavior.
+- [x] `alignContigsToSource` returns only typed algebraic data and no
+      human-readable summary text.
+- [x] UI summary string generation is localized entirely within
+      `src/ui/diffView.ts` (or similar view tier).
+- [x] Span and interval arithmetic is extracted into a standalone pure function.
+- [x] All view and domain tests pass, confirming no visible change in
+      application behavior.

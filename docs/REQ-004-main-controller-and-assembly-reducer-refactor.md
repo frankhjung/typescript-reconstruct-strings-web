@@ -2,6 +2,10 @@
 
 [← Back to Documentation Index](README.md)
 
+## Status
+
+Implemented
+
 ## Context
 
 The current application has a clear domain model and a deterministic assembly

@@ -24,6 +24,11 @@ guides for the **reconstruct-strings-web** project.
 - [Main Controller and Assembly Reducer Refactor (REQ-004)][req-004]:
   Incremental migration plan to move the imperative controller and trace
   builder towards a fully reducer-driven architecture.
+- [Alignment Module Refactor (REQ-005)][req-005]:
+  Decoupling interval arithmetic, sequence search, and reporting logic.
+- [Unified Reduction Event Architecture (REQ-006)][req-006]:
+  Retiring legacy step view models and unifying the trace pipeline on
+  pure reduction events.
 
 ### Domain Theory and Parameter Analysis
 
@@ -31,7 +36,7 @@ guides for the **reconstruct-strings-web** project.
   models for collision probabilities, minimum overlap lower and upper bounds,
   Lander–Waterman coverage depth, and calibrated parameter configurations.
 - [Reconstructing DNA from Short Fragments][dna-doc]: Biological background
-  on *de novo* genome assembly, contrasting Overlap-Layout-Consensus (OLC)
+  on _de novo_ genome assembly, contrasting Overlap-Layout-Consensus (OLC)
   with de Bruijn graph (DBG) paradigms.
 
 [dna-doc]: reconstructing-complete-dna-strand-from-short-fragments.md
@@ -41,3 +46,5 @@ guides for the **reconstruct-strings-web** project.
 [req-002]: REQ-002-data-oriented-assembly-reduction.md
 [req-003]: REQ-003-elm-reducer-architecture.md
 [req-004]: REQ-004-main-controller-and-assembly-reducer-refactor.md
+[req-005]: REQ-005-alignment-module-refactor.md
+[req-006]: REQ-006-unified-reduction-event-architecture.md

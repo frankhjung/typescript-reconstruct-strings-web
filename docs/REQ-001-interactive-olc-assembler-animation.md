@@ -2,6 +2,10 @@
 
 [← Back to Documentation Index](README.md)
 
+## Status
+
+Implemented
+
 ## 1. Overview and Problem Statement
 
 This specification defines the functional requirements, user interface,

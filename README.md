@@ -18,46 +18,109 @@ verifies reconstruction against a reference sequence.
 
 ## Architecture & Workflow
 
-The reconstruction animation pipeline coordinates fragment generation, iterative
-reduction assembly, and real-time reference verification:
+The web application follows the functional "Pure Core, Effectful Shell"
+architecture. Application state transitions are governed by an Elm-style pure
+reducer, sequence reduction algorithms operate on immutable algebraic data
+types, and browser effects are confined to a thin runtime boundary.
+
+### Component Architecture
+
+The module dependencies and boundaries divide into four key tiers:
+
+```mermaid
+flowchart TD
+    subgraph Presentation["Presentation Tier (src/ui/)"]
+        Controls["ControlsComponent"]
+        StepView["Step View Projector (projectStepView)"]
+        PoolView["Pool View (renderPoolHtml)"]
+        MergeView["Merge Theatre (renderMergeTheatreHtml)"]
+        DiffView["Diff View (renderDiffViewHtml)"]
+    end
+
+    subgraph Shell["Runtime Boundary (src/main.ts)"]
+        App["App Runtime Shell (Effect Interpreter)"]
+    end
+
+    subgraph State["State Management (src/store.ts)"]
+        Store["Pure Store Reducer (update)"]
+    end
+
+    subgraph Domain["Pure Domain Core"]
+        Assembler["Sequence Assembler (traceAssembly, assemble)"]
+        Generator["Fragment Generator (generateFragments)"]
+        Alignment["Reference Alignment (alignContigsToSource)"]
+        Presets["Presets & Input Helpers (PRESETS, parseFragments)"]
+    end
+
+    subgraph Contracts["Domain Contracts (src/types.ts)"]
+        DataTypes["Pure ADTs (ReductionEvent, GeneratorParams, etc.)"]
+    end
+
+    Controls -->|"dispatch(Action)"| App
+    App -->|"update(state, action)"| Store
+    Store -->|"[AppState, Effect[]]"| App
+    App -->|"execute effect"| Assembler
+    App -->|"execute effect"| Generator
+    App -->|"project current event"| StepView
+    StepView -->|"StepViewModel"| PoolView
+    StepView -->|"StepViewModel"| MergeView
+    App -->|"alignContigsToSource"| Alignment
+    Alignment -->|"AlignmentReport"| DiffView
+    PoolView -->|"HTML string"| App
+    MergeView -->|"HTML string"| App
+    DiffView -->|"HTML string"| App
+    Presets --> Controls
+    Assembler -.-> DataTypes
+    Store -.-> DataTypes
+    StepView -.-> DataTypes
+    Alignment -.-> DataTypes
+```
+
+### Reduction & Playback Lifecycle
+
+The sequence diagram below visualises the coordination across user actions,
+pure reducer transitions, domain event tracing, and view projections:
 
 ```mermaid
 sequenceDiagram
-  autonumber
-  actor User
-  participant UI as Controls UI
-  participant App as App Runtime
-  participant Store as Pure Reducer
-  participant Gen as Generator
-  participant Asm as Assembler Engine
-  participant Align as Alignment
-  participant View as View Renderers
+    autonumber
+    actor User
+    participant UI as Controls UI
+    participant App as App Runtime Shell
+    participant Store as Pure Reducer
+    participant Gen as Generator
+    participant Asm as Assembler Engine
+    participant StepView as Step View Projector
+    participant Align as Alignment
+    participant View as View Renderers
 
-  User->>UI: Click Generate / Select Preset
-  UI->>App: dispatch(Action: GENERATE / LOAD_PRESET)
-  App->>Store: update(state, Action)
-  Store-->>App: [newState, Effect: RUN_GENERATOR / RUN_ASSEMBLY]
+    User->>UI: Click Generate / Select Preset
+    UI->>App: dispatch(Action: GENERATE / LOAD_PRESET)
+    App->>Store: update(state, Action)
+    Store-->>App: [newState, Effect: RUN_GENERATOR / RUN_ASSEMBLY]
 
-  opt If RUN_GENERATOR (No fixed fragments)
-    App->>Gen: generateFragments(params)
-    Gen-->>App: fragments
-    App->>App: handleEffect(RUN_ASSEMBLY)
-  end
+    opt If RUN_GENERATOR (No fixed fragments)
+        App->>Gen: generateFragments(params)
+        Gen-->>App: fragments
+        App->>App: handleEffect(RUN_ASSEMBLY)
+    end
 
-  App->>Asm: assembleWithTrace(fragments, minOverlap)
-  Note over Asm: Pure trace of ReductionEvents
-  Asm-->>App: AssemblyResult (steps)
+    App->>Asm: traceAssembly(fragments, minOverlap)
+    Note over Asm: Pure stream of ReductionEvents
+    Asm-->>App: events: readonly ReductionEvent[]
 
-  App->>Store: dispatch(Action: ASSEMBLY_SUCCESS)
-  Store-->>App: [newState, Effect: RENDER]
+    App->>Store: dispatch(Action: ASSEMBLY_SUCCESS, events)
+    Store-->>App: [newState, Effect: RENDER]
 
-  loop Playback / Rendering
-    App->>Align: alignContigsToSource(source, currentStep.pool)
-    Align-->>App: AlignmentReport
-    App->>View: renderPoolHtml / renderMergeTheatreHtml / renderDiffViewHtml
-    View-->>App: Rendered HTML strings
-    App-->>User: Update DOM elements
-  end
+    loop Playback / Rendering
+        App->>StepView: projectStepView(currentEvent)
+        StepView-->>App: stepView: StepViewModel
+        App->>Align: alignContigsToSource(source, stepView.pool)
+        Align-->>App: AlignmentReport
+        App->>View: renderPoolHtml / renderMergeTheatreHtml / renderDiffViewHtml
+        View-->>App: Rendered HTML strings
+        App-->>User: Update DOM elements
+    end
 ```
 
 ## Quick Start
@@ -178,10 +241,13 @@ the [`docs/`](docs/README.md) directory:
   collision models, overlap lower and upper bounds, Lander–Waterman coverage
   depth, and calibrated parameter configurations.
 - [Reconstructing DNA from Short Fragments][dna-doc]: Biological background on
-  *de novo* genome assembly, contrasting OLC and de Bruijn graph paradigms.
+  _de novo_ genome assembly, contrasting OLC and de Bruijn graph paradigms.
 - [Alignment Module Refactor (REQ-005)][req-005]: Extraction of pure interval
   arithmetic and sequence alignment logic, decoupling data reporting from UI
   narration.
+- [Unified Reduction Event Architecture (REQ-006)][req-006]: Unification of
+  assembly trace progression on pure reduction events, retiring legacy step
+  models.
 
 [dna-doc]: docs/reconstructing-complete-dna-strand-from-short-fragments.md
 [docs-glossary]: docs/GLOSSARY.md
@@ -192,6 +258,7 @@ the [`docs/`](docs/README.md) directory:
 [req-003]: docs/REQ-003-elm-reducer-architecture.md
 [req-004]: docs/REQ-004-main-controller-and-assembly-reducer-refactor.md
 [req-005]: docs/REQ-005-alignment-module-refactor.md
+[req-006]: docs/REQ-006-unified-reduction-event-architecture.md
 
 ## Development Pipeline
 
@@ -224,7 +291,7 @@ Available development targets:
   - `presets.ts`: Built-in sequence presets.
   - `store.ts`: Pure reducer, state model, action union, and effect plan.
   - `types.ts`: Core domain interfaces.
-  - `ui/`: Pure HTML template renderers for DOM views.
+  - `ui/`: Pure HTML template renderers and step view projection.
 - `static/index.html`: Base HTML template.
 - `docs/`: Technical specifications, parameter heuristics, and domain guides.
 - `dist/`: Generated standalone distribution bundle.

@@ -1,5 +1,4 @@
 import type {
-  AssemblyStep,
   OverlapCandidate,
   ReductionEvent,
   ReductionSession,
@@ -160,19 +159,6 @@ export function filterContainedFragments(fragments: readonly string[]): {
 }
 
 /**
- * Format a human-readable text explanation of why a fragment was removed
- * from the pool (duplicate or proper substring containment).
- */
-export function describeRemoved(removed: RemovedFragment): string {
-  if (removed.reason === 'contained') {
-    return removed.fragment
-  }
-  const copies = removed.copies ?? 1
-  const noun = copies === 1 ? 'duplicate copy' : 'duplicate copies'
-  return `${removed.fragment} (${copies} ${noun})`
-}
-
-/**
  * Sort contigs into canonical output order:
  * 1. Descending sequence length (longer first)
  * 2. Ascending sequence order (UTF-16 code unit order)
@@ -266,9 +252,10 @@ export function startSession(
  * (initial filtering, candidate selection, merging, dynamic containment,
  * or assembly completion).
  */
-export function stepSession(
-  session: ReductionSession
-): { readonly session: ReductionSession; readonly event: ReductionEvent } {
+export function stepSession(session: ReductionSession): {
+  readonly session: ReductionSession
+  readonly event: ReductionEvent
+} {
   if (session.isComplete || session.stage === 'done') {
     const contigs = sortCanonical(session.pool)
     return {
@@ -436,128 +423,4 @@ export function traceAssembly(
   }
 
   return events
-}
-
-/** Final contigs plus the full animation trace. */
-export interface AssemblyResult {
-  readonly contigs: readonly string[]
-  readonly steps: readonly AssemblyStep[]
-}
-
-/**
- * Backward-compatible Strangler Fig delegation adapter for legacy UI callers.
- *
- * Unfolds the pure session via {@link traceAssembly} and projects domain
- * reduction events into legacy {@link AssemblyStep} view models.
- */
-export function assembleWithTrace(
-  rawFragments: readonly string[],
-  minOverlap: number
-): AssemblyResult {
-  validateAssemblyInputs(rawFragments, minOverlap)
-
-  const steps: AssemblyStep[] = []
-  let stepIndex = 0
-
-  steps.push({
-    stepIndex: stepIndex++,
-    type: 'init',
-    pool: [...rawFragments],
-    description: `Initialised raw pool with ${rawFragments.length} fragments.`
-  })
-
-  const events = traceAssembly(rawFragments, minOverlap)
-  let lastCandidate: OverlapCandidate | undefined
-
-  for (const event of events) {
-    switch (event.kind) {
-      case 'initial-filtered':
-        steps.push({
-          stepIndex: stepIndex++,
-          type: 'filter-initial',
-          pool: [...event.pool],
-          removedFragments: event.removed,
-          description:
-            event.removed.length > 0
-              ? `Filtered ${event.removed.length} redundant fragments ` +
-                `(duplicates/substrings). Active pool: ${event.pool.length}.`
-              : `All ${event.pool.length} fragments are unique and uncontained.`
-        })
-        break
-
-      case 'candidate-selected':
-        lastCandidate = event.candidate
-        steps.push({
-          stepIndex: stepIndex++,
-          type: 'find-overlap',
-          pool: [...event.pool],
-          candidate: event.candidate,
-          description:
-            `Found best overlap of length ${event.candidate.matchLength} ` +
-            `between prefix "${event.candidate.prefix}" and suffix ` +
-            `"${event.candidate.suffix}".`
-        })
-        break
-
-      case 'pair-merged':
-        steps.push({
-          stepIndex: stepIndex++,
-          type: 'merge-pair',
-          pool: [...event.pool],
-          candidate: event.candidate,
-          mergedFragment: event.mergedFragment,
-          description:
-            `Merged "${event.candidate.prefix}" and ` +
-            `"${event.candidate.suffix}" into "${event.mergedFragment}".`
-        })
-        break
-
-      case 'dynamic-filtered': {
-        const step = {
-          stepIndex: stepIndex++,
-          type: 'filter-dynamic' as const,
-          pool: [...event.pool],
-          removedFragments: event.removed,
-          mergedFragment: event.mergedFragment,
-          description:
-            `Dynamic containment: eliminated ` +
-            `${event.removed.map(describeRemoved).join(', ')} ` +
-            `engulfed by new sequence.`
-        }
-        if (lastCandidate !== undefined) {
-          steps.push({ ...step, candidate: lastCandidate })
-        } else {
-          steps.push(step)
-        }
-        break
-      }
-
-      case 'assembly-completed':
-        steps.push({
-          stepIndex: stepIndex++,
-          type: 'canonical-sort',
-          pool: event.contigs,
-          description:
-            `Canonical sort: ${event.contigs.length} contig(s) ordered ` +
-            `by length, then alphabetically.`
-        })
-        steps.push({
-          stepIndex,
-          type: 'completed',
-          pool: event.contigs,
-          description:
-            `Assembly complete: reconstructed ${event.contigs.length} ` +
-            `contig(s).`
-        })
-        break
-    }
-  }
-
-  const finalContigs =
-    events.find((e) => e.kind === 'assembly-completed')?.contigs ?? []
-
-  return {
-    contigs: finalContigs,
-    steps
-  }
 }

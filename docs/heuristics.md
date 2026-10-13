@@ -123,10 +123,10 @@ target sequence of length $G = 1{,}000$ units and $N = 1{,}000$ fragments:
     ```ts
     const genomicParams: GeneratorParams = {
       source: referenceGenome, // Target length G = 1000
-      minOverlap: 10,          // n = 10 bases
-      minLength: 20,           // a = 20 bp
-      maxLength: 40,           // b = 40 bp
-      fragmentCount: 1000      // m = 1000 fragments
+      minOverlap: 10, // n = 10 bases
+      minLength: 20, // a = 20 bp
+      maxLength: 40, // b = 40 bp
+      fragmentCount: 1000 // m = 1000 fragments
     }
     ```
 
@@ -146,10 +146,10 @@ target sequence of length $G = 1{,}000$ units and $N = 1{,}000$ fragments:
     ```ts
     const textParams: GeneratorParams = {
       source: referenceText, // Target length G = 1000
-      minOverlap: 5,         // n = 5 characters
-      minLength: 10,         // a = 10 chars
-      maxLength: 20,         // b = 20 chars
-      fragmentCount: 1000    // m = 1000 fragments
+      minOverlap: 5, // n = 5 characters
+      minLength: 10, // a = 10 chars
+      maxLength: 20, // b = 20 chars
+      fragmentCount: 1000 // m = 1000 fragments
     }
     ```
 

@@ -1,12 +1,19 @@
 import { alignContigsToSource } from './alignment.js'
-import { assembleWithTrace } from './assembler.js'
+import { traceAssembly } from './assembler.js'
 import { generateFragments, validateCustomFragments } from './generator.js'
 import { PRESETS } from './presets.js'
-import { init, update, type Action, type AppState, type Effect } from './store.js'
+import {
+  init,
+  update,
+  type Action,
+  type AppState,
+  type Effect
+} from './store.js'
 import { ControlsComponent } from './ui/controls.js'
 import { renderDiffViewHtml } from './ui/diffView.js'
 import { renderMergeTheatreHtml } from './ui/mergeView.js'
 import { renderPoolHtml } from './ui/poolView.js'
+import { projectStepView } from './ui/stepView.js'
 
 /** The regions of the page that the application renders into. */
 interface Workspace {
@@ -104,17 +111,26 @@ class App {
     const [initialState] = init()
     this.state = initialState
     this.workspace = mountWorkspace()
-    
+
     // Wire the ControlsComponent directly to the store dispatcher
-    this.controls = new ControlsComponent(this.workspace.controlsPanel, PRESETS, (action) => this.dispatch(action))
+    this.controls = new ControlsComponent(
+      this.workspace.controlsPanel,
+      PRESETS,
+      (action) => this.dispatch(action)
+    )
     this.controls.setSpeed(this.state.stepDelayMs)
 
     const searchParams = new URLSearchParams(window.location.search)
     const presetIdx = intParam(searchParams, 'preset') ?? 0
     const initialPreset = PRESETS[presetIdx] ?? PRESETS[0]
     if (initialPreset) {
-      const action: Action = { type: 'LOAD_PRESET', params: initialPreset.params }
-      if (initialPreset.defaultFragments) action.defaultFragments = initialPreset.defaultFragments
+      const action: Action = {
+        type: 'LOAD_PRESET',
+        params: initialPreset.params
+      }
+      if (initialPreset.defaultFragments) {
+        action.defaultFragments = initialPreset.defaultFragments
+      }
       this.dispatch(action)
     }
 
@@ -125,7 +141,7 @@ class App {
   }
 
   /**
-   * Dispatches an action to the pure store, updates the state, and 
+   * Dispatches an action to the pure store, updates the state, and
    * executes any requested side effects.
    */
   private dispatch(action: Action): void {
@@ -170,18 +186,23 @@ class App {
         break
       case 'RUN_ASSEMBLY':
         try {
-          // If the user manually provided custom fragments, validate them first.
-          // In a more pure architecture this could also be in the reducer or validation layer.
           if (effect.fragments.length > 0) {
             try {
-              validateCustomFragments(effect.fragments, effect.minOverlap, effect.source)
+              validateCustomFragments(
+                effect.fragments,
+                effect.minOverlap,
+                effect.source
+              )
             } catch {
-              // Not all GENERATOR tests run through custom validator, so we just log and continue if it's just warning
               // validateCustomFragments throws errors for real issues
             }
           }
-          const result = assembleWithTrace(effect.fragments, effect.minOverlap)
-          this.dispatch({ type: 'ASSEMBLY_SUCCESS', source: effect.source, steps: result.steps })
+          const events = traceAssembly(effect.fragments, effect.minOverlap)
+          this.dispatch({
+            type: 'ASSEMBLY_SUCCESS',
+            source: effect.source,
+            events
+          })
         } catch (err: unknown) {
           this.dispatch({ type: 'ASSEMBLY_ERROR', message: errorMessage(err) })
         }
@@ -197,32 +218,37 @@ class App {
 
   private renderCurrentState(): void {
     const { pool, theatre, diff } = this.workspace
-    const currentStep = this.state.steps[this.state.currentStepIndex]
-    
+    const currentEvent = this.state.events[this.state.currentStepIndex]
+
     if (this.state.error) {
       this.controls.setExplanation(`Error: ${this.state.error}`)
       return
     }
 
-    if (!currentStep) {
+    if (!currentEvent) {
       pool.innerHTML = renderPoolHtml(null)
       theatre.innerHTML = renderMergeTheatreHtml(null)
       diff.innerHTML = renderDiffViewHtml(null)
       return
     }
 
+    const stepView = projectStepView(currentEvent)
+
     const stepReport = alignContigsToSource(
       this.state.currentSource,
-      currentStep.pool
+      stepView.pool
     )
 
-    pool.innerHTML = renderPoolHtml(currentStep)
-    theatre.innerHTML = renderMergeTheatreHtml(currentStep)
+    pool.innerHTML = renderPoolHtml(stepView)
+    theatre.innerHTML = renderMergeTheatreHtml(stepView)
     diff.innerHTML = renderDiffViewHtml(stepReport)
 
     this.controls.setPlaying(this.state.isPlaying)
-    this.controls.updateProgress(this.state.currentStepIndex, this.state.steps.length)
-    this.controls.setExplanation(currentStep.description)
+    this.controls.updateProgress(
+      this.state.currentStepIndex,
+      this.state.events.length
+    )
+    this.controls.setExplanation(stepView.description)
   }
 }
 

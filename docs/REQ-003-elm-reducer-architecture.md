@@ -2,6 +2,10 @@
 
 [← Back to Documentation Index](README.md)
 
+## Status
+
+Implemented
+
 ## Context
 
 The previous architecture used a monolithic controller (`App` in `src/main.ts`)
@@ -36,19 +40,19 @@ pattern) to strictly decouple state transitions from side effects.
 
 ### Benefits
 
-* **Maximum Leverage in Testing**: The entirety of the application's state
+- **Maximum Leverage in Testing**: The entirety of the application's state
   machine, playback logic, and edge cases (e.g., reaching the end of an assembly
   trace) can now be rigorously unit tested without any mocked timers or DOM
   dependencies.
-* **Decoupling**: The view layer (`ControlsComponent`) is completely isolated
+- **Decoupling**: The view layer (`ControlsComponent`) is completely isolated
   from application state. It simply translates DOM events into pure `Action`
   payloads.
-* **Predictability**: All side effects are explicit. Tracking down state bugs is
+- **Predictability**: All side effects are explicit. Tracking down state bugs is
   trivial, as state can only change via a dispatched `Action`.
 
 ### Drawbacks
 
-* **Indirection**: Executing an effectful operation (like generating fragments)
+- **Indirection**: Executing an effectful operation (like generating fragments)
   requires a full round-trip through the runtime loop (dispatching `GENERATE`,
   interpreting `RUN_GENERATOR`, and subsequently dispatching
   `ASSEMBLY_SUCCESS`), which introduces boilerplate compared to direct
@@ -125,7 +129,7 @@ For each migration layer:
 2. add a property or edge-case test for the pure assembly transitions,
 3. adapt the renderer contract only after the state machine is green,
 4. remove obsolete imperative tests once the pure contract meets the same
-  coverage.
+   coverage.
 
 This keeps the migration incremental while ensuring that behaviour remains
 stable across user actions and playback modes.

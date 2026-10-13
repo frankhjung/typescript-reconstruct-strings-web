@@ -1,6 +1,6 @@
-import type { AssemblyStep, RemovedFragment } from '../types.js'
+import type { RemovedFragment } from '../types.js'
 import { escapeHtml } from './escape.js'
-import { stepDetails } from './stepDetails.js'
+import type { StepViewModel } from './stepView.js'
 
 function removalBadge(removed: RemovedFragment): string {
   if (removed.reason === 'duplicate') {
@@ -12,12 +12,12 @@ function removalBadge(removed: RemovedFragment): string {
 /**
  * Pure template renderer for the fragment pool workspace.
  */
-export function renderPoolHtml(step: AssemblyStep | null): string {
+export function renderPoolHtml(step: StepViewModel | null): string {
   if (!step) {
     return ''
   }
 
-  const { candidate, mergedFragment, removed } = stepDetails(step)
+  const { candidate, mergedFragment, removed } = step
 
   const activeCards = step.pool
     .map((fragment) => {

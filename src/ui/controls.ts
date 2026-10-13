@@ -206,7 +206,8 @@ export class ControlsComponent {
       const preset = Number.isNaN(idx) ? undefined : presets[idx]
       if (preset) {
         const action: Action = { type: 'LOAD_PRESET', params: preset.params }
-        if (preset.defaultFragments) action.defaultFragments = preset.defaultFragments
+        if (preset.defaultFragments)
+          action.defaultFragments = preset.defaultFragments
         dispatch(action)
       }
     })
@@ -228,9 +229,15 @@ export class ControlsComponent {
       })
     })
 
-    els.btnPlayPause.addEventListener('click', () => dispatch({ type: 'TOGGLE_PLAY' }))
-    els.btnStepNext.addEventListener('click', () => dispatch({ type: 'STEP_NEXT' }))
-    els.btnStepPrev.addEventListener('click', () => dispatch({ type: 'STEP_PREV' }))
+    els.btnPlayPause.addEventListener('click', () =>
+      dispatch({ type: 'TOGGLE_PLAY' })
+    )
+    els.btnStepNext.addEventListener('click', () =>
+      dispatch({ type: 'STEP_NEXT' })
+    )
+    els.btnStepPrev.addEventListener('click', () =>
+      dispatch({ type: 'STEP_PREV' })
+    )
     els.btnReset.addEventListener('click', () => dispatch({ type: 'RESET' }))
 
     els.scrubber.addEventListener('input', () => {
