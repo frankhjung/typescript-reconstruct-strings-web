@@ -5,6 +5,10 @@ Overlap-Layout-Consensus (OLC) sequence assembler. It visually demonstrates how
 string fragments assemble into contiguous sequences (contigs) and dynamically
 verifies reconstruction against a reference sequence.
 
+The following video gives a short introduction:
+
+[![How Algorithms Rebuild Shattered DNA][banner-image]][video-url]
+
 ## Features
 
 - **Stepwise OLC Animation:** Step through pairwise suffix-prefix overlaps,
@@ -304,3 +308,6 @@ Available development targets:
 
 This project is licensed under the BSD-3-Clause licence. See the
 [LICENSE](LICENSE) file for details.
+
+[banner-image]: docs/how-algorithms-rebuild-shattered-dna.png
+[video-url]: https://youtu.be/z2dpAw3IzmE?si=hfSzDUGu-2-OcCqB
